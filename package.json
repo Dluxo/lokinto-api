@@ -21,6 +21,9 @@
     "pdf-parse": "^2.4.5",
     "pdfkit": "^0.18.0"
   },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.10",
