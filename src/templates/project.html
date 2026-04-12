@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Case Study</title>
+  <style>
+    /* ─── THEME — keep in sync with portfolio.html ──────────────────────────── */
+    :root {
+      --color-bg:       #0f0f0f;
+      --color-surface:  #1a1a1a;
+      --color-border:   #2a2a2a;
+      --color-accent:   #e8ff47;
+      --color-text:     #f0f0f0;
+      --color-muted:    #888;
+      --font-sans:      -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      --radius:         12px;
+      --max-width:      800px;
+      --transition:     0.2s ease;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-family: var(--font-sans);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--color-accent); text-decoration: none; }
+    img { display: block; max-width: 100%; }
+
+    /* ─── NAV ─────────────────────────────────────────────────────────────────── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(15,15,15,0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--color-border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      height: 52px;
+      gap: 1rem;
+    }
+    .back-link {
+      font-size: 0.875rem;
+      color: var(--color-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color var(--transition);
+    }
+    .back-link:hover { color: var(--color-text); }
+    .nav-title {
+      font-size: 0.875rem;
+      color: var(--color-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ─── LAYOUT ──────────────────────────────────────────────────────────────── */
+    .container { max-width: var(--max-width); margin: 0 auto; padding: 0 2rem; }
+
+    /* ─── HERO ────────────────────────────────────────────────────────────────── */
+    .project-hero {
+      padding: 4rem 0 3rem;
+      border-bottom: 1px solid var(--color-border);
+      margin-bottom: 3rem;
+    }
+    .project-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--color-accent);
+      margin-bottom: 1rem;
+    }
+    .project-title {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 1.5rem;
+    }
+    .project-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      margin-bottom: 1.5rem;
+    }
+    .meta-item { display: flex; flex-direction: column; gap: 4px; }
+    .meta-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+    }
+    .meta-value { font-size: 0.9rem; color: var(--color-text); }
+    .outcome-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(232,255,71,0.08);
+      border: 1px solid rgba(232,255,71,0.25);
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--color-text);
+    }
+
+    /* ─── CONTENT SECTIONS ────────────────────────────────────────────────────── */
+    .case-study-content {
+      padding-bottom: 4rem;
+    }
+
+    /* heading block */
+    .section-heading {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--color-text);
+      margin: 3rem 0 1rem;
+    }
+    .section-heading:first-child { margin-top: 0; }
+
+    /* paragraph block */
+    .section-paragraph {
+      font-size: 1.025rem;
+      color: #bbb;
+      line-height: 1.85;
+      margin-bottom: 1.25rem;
+      max-width: 680px;
+    }
+
+    /* image block */
+    .section-image {
+      margin: 2.5rem 0;
+    }
+    .section-image img {
+      width: 100%;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      cursor: zoom-in;
+      transition: border-color var(--transition);
+    }
+    .section-image img:hover { border-color: rgba(232,255,71,0.4); }
+    .section-image figcaption {
+      margin-top: 0.6rem;
+      font-size: 0.8rem;
+      color: var(--color-muted);
+      text-align: center;
+    }
+
+    /* stats block */
+    .section-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      margin: 2.5rem 0;
+      padding: 2rem;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+    }
+    .stat-item { display: flex; flex-direction: column; gap: 4px; }
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      color: var(--color-accent);
+    }
+    .stat-label {
+      font-size: 0.82rem;
+      color: var(--color-muted);
+    }
+
+    /* ─── TAGS ────────────────────────────────────────────────────────────────── */
+    .tags-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 2rem 0;
+      border-top: 1px solid var(--color-border);
+    }
+    .tag {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      color: var(--color-muted);
+      font-size: 0.78rem;
+      padding: 4px 12px;
+      border-radius: 100px;
+    }
+
+    /* ─── FOOTER ──────────────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--color-border);
+      padding: 2rem;
+      text-align: center;
+      color: var(--color-muted);
+      font-size: 0.8rem;
+    }
+
+    /* ─── LIGHTBOX ────────────────────────────────────────────────────────────── */
+    .lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.95);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+      padding: 2rem;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox img { max-width: 100%; max-height: 90vh; object-fit: contain; border-radius: var(--radius); }
+
+    /* ─── RESPONSIVE ──────────────────────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .container { padding: 0 1.25rem; }
+      nav { padding: 0 1.25rem; }
+      .project-hero { padding: 2.5rem 0 2rem; }
+      .project-meta { gap: 1.25rem; }
+      .section-stats { flex-direction: column; gap: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="back-link" id="back-link" href="#">
+    <span>←</span> Back to portfolio
+  </a>
+  <span class="nav-title" id="nav-title"></span>
+</nav>
+
+<main>
+  <!-- Hero -->
+  <div class="project-hero">
+    <div class="container">
+      <div class="project-label">Case Study</div>
+      <h1 class="project-title" id="project-title"></h1>
+      <div class="project-meta" id="project-meta"></div>
+      <div class="outcome-bar" id="outcome-bar" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- Rich content sections -->
+  <div class="case-study-content">
+    <div class="container">
+      <div id="sections-container"></div>
+
+      <!-- Tags -->
+      <div class="tags-row" id="tags-row"></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <p>Built with GigBot</p>
+</footer>
+
+<div class="lightbox" id="lightbox">
+  <img id="lightbox-img" src="" alt="" />
+</div>
+
+<script>
+const DATA = {{PROJECT_DATA}};
+
+// ── Head & nav ────────────────────────────────────────────────────────────────
+document.title = `${DATA.title} — Case Study`;
+document.getElementById("back-link").href = DATA.backUrl || "/";
+document.getElementById("nav-title").textContent = DATA.title;
+document.getElementById("project-title").textContent = DATA.title;
+
+// ── Meta row ──────────────────────────────────────────────────────────────────
+const meta = document.getElementById("project-meta");
+[{ label: "Role", value: DATA.role }, { label: "Tools", value: DATA.tools }]
+  .filter(m => m.value)
+  .forEach(m => {
+    meta.innerHTML += `
+      <div class="meta-item">
+        <span class="meta-label">${m.label}</span>
+        <span class="meta-value">${m.value}</span>
+      </div>`;
+  });
+
+// ── Outcome bar ───────────────────────────────────────────────────────────────
+if (DATA.outcome) {
+  const bar = document.getElementById("outcome-bar");
+  bar.textContent = DATA.outcome;
+  bar.insertAdjacentHTML("afterbegin", "📈 ");
+  bar.style.display = "inline-flex";
+}
+
+// ── Rich sections ─────────────────────────────────────────────────────────────
+const container = document.getElementById("sections-container");
+
+(DATA.sections || []).forEach(section => {
+  let el;
+
+  if (section.type === "heading") {
+    el = document.createElement("h2");
+    el.className = "section-heading";
+    el.textContent = section.text;
+
+  } else if (section.type === "paragraph") {
+    el = document.createElement("p");
+    el.className = "section-paragraph";
+    el.textContent = section.text;
+
+  } else if (section.type === "image") {
+    const src = DATA.images && DATA.images[section.pageIndex];
+    if (src) {
+      el = document.createElement("figure");
+      el.className = "section-image";
+      const img = document.createElement("img");
+      img.src = src;
+      img.alt = section.caption || DATA.title;
+      img.loading = "lazy";
+      el.appendChild(img);
+      if (section.caption) {
+        const cap = document.createElement("figcaption");
+        cap.textContent = section.caption;
+        el.appendChild(cap);
+      }
+    }
+
+  } else if (section.type === "stats") {
+    el = document.createElement("div");
+    el.className = "section-stats";
+    (section.items || []).forEach(stat => {
+      el.innerHTML += `
+        <div class="stat-item">
+          <span class="stat-value">${stat.value}</span>
+          <span class="stat-label">${stat.label}</span>
+        </div>`;
+    });
+  }
+
+  if (el) container.appendChild(el);
+});
+
+// ── Tags ──────────────────────────────────────────────────────────────────────
+const tagsRow = document.getElementById("tags-row");
+if (DATA.tags) {
+  DATA.tags.split(",").map(t => t.trim()).filter(Boolean).forEach(tag => {
+    tagsRow.innerHTML += `<span class="tag">${tag}</span>`;
+  });
+} else {
+  tagsRow.style.display = "none";
+}
+
+// ── Lightbox ──────────────────────────────────────────────────────────────────
+const lightbox = document.getElementById("lightbox");
+const lightboxImg = document.getElementById("lightbox-img");
+document.querySelectorAll(".section-image img").forEach(img => {
+  img.addEventListener("click", () => {
+    lightboxImg.src = img.src;
+    lightbox.classList.add("open");
+  });
+});
+lightbox.addEventListener("click", () => lightbox.classList.remove("open"));
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") lightbox.classList.remove("open");
+});
+</script>
+</body>
+</html>

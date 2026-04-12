@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portfolio</title>
+  <style>
+    /* ─── THEME — edit these to change the look ─────────────────────────────── */
+    :root {
+      --color-bg:         #0f0f0f;
+      --color-surface:    #1a1a1a;
+      --color-border:     #2a2a2a;
+      --color-accent:     #e8ff47;
+      --color-text:       #f0f0f0;
+      --color-muted:      #888;
+      --font-sans:        -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      --font-mono:        "SF Mono", "Fira Code", monospace;
+      --radius:           12px;
+      --max-width:        900px;
+      --transition:       0.2s ease;
+    }
+
+    /* ─── RESET ─────────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-family: var(--font-sans);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--color-accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    img { display: block; max-width: 100%; border-radius: var(--radius); }
+
+    /* ─── NAV ────────────────────────────────────────────────────────────────── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(15, 15, 15, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--color-border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+    }
+    .nav-name { font-weight: 600; font-size: 0.95rem; letter-spacing: -0.01em; }
+    .nav-links { display: flex; gap: 2rem; }
+    .nav-links a { color: var(--color-muted); font-size: 0.875rem; transition: color var(--transition); }
+    .nav-links a:hover { color: var(--color-text); text-decoration: none; }
+
+    /* ─── LAYOUT ─────────────────────────────────────────────────────────────── */
+    .container { max-width: var(--max-width); margin: 0 auto; padding: 0 2rem; }
+    section { padding: 5rem 0; }
+    section + section { border-top: 1px solid var(--color-border); }
+
+    /* ─── HERO ───────────────────────────────────────────────────────────────── */
+    #hero { padding: 6rem 0 5rem; }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(232, 255, 71, 0.1);
+      border: 1px solid rgba(232, 255, 71, 0.3);
+      color: var(--color-accent);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 100px;
+      margin-bottom: 1.5rem;
+    }
+    .hero-badge::before { content: "●"; font-size: 0.5em; }
+    .hero-name {
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 1.05;
+      margin-bottom: 1.25rem;
+    }
+    .hero-tagline {
+      font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+      color: var(--color-muted);
+      max-width: 600px;
+      line-height: 1.5;
+      margin-bottom: 1.5rem;
+    }
+    .hero-bio {
+      font-size: 1rem;
+      color: var(--color-muted);
+      max-width: 560px;
+      line-height: 1.7;
+    }
+
+    /* ─── WORK ───────────────────────────────────────────────────────────────── */
+    #work h2, #skills h2, #contact h2 {
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 2.5rem;
+    }
+    .work-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+    .work-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      text-decoration: none;
+      display: block;
+      transition: border-color var(--transition), transform var(--transition);
+    }
+    .work-card:hover {
+      border-color: var(--color-accent);
+      transform: translateY(-2px);
+      text-decoration: none;
+    }
+    .work-card-thumb {
+      width: 100%;
+      aspect-ratio: 16/9;
+      object-fit: cover;
+      object-position: top;
+      display: block;
+      background: var(--color-border);
+    }
+    .work-card-thumb-placeholder {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: var(--color-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-muted);
+      font-size: 2rem;
+    }
+    .work-card-body {
+      padding: 1.25rem;
+    }
+    .work-card-role {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--color-accent);
+      margin-bottom: 0.5rem;
+    }
+    .work-card-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--color-text);
+      letter-spacing: -0.01em;
+      margin-bottom: 0.5rem;
+      line-height: 1.3;
+    }
+    .work-card-intro {
+      font-size: 0.875rem;
+      color: var(--color-muted);
+      line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+    .work-card-cta {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--color-accent);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* ─── SKILLS ─────────────────────────────────────────────────────────────── */
+    .skills-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+    }
+    .skill-tag {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      color: var(--color-text);
+      font-size: 0.875rem;
+      padding: 6px 14px;
+      border-radius: 100px;
+      transition: border-color var(--transition), color var(--transition);
+    }
+    .skill-tag:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
+    /* ─── CONTACT ────────────────────────────────────────────────────────────── */
+    .contact-block { max-width: 560px; }
+    .contact-block p {
+      font-size: 1.1rem;
+      color: var(--color-muted);
+      margin-bottom: 1.5rem;
+      line-height: 1.7;
+    }
+    .contact-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--color-accent);
+      color: #000;
+      font-weight: 600;
+      font-size: 0.9rem;
+      padding: 12px 24px;
+      border-radius: 100px;
+      transition: opacity var(--transition);
+    }
+    .contact-cta:hover { opacity: 0.88; text-decoration: none; }
+
+    /* ─── FOOTER ─────────────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--color-border);
+      padding: 2rem;
+      text-align: center;
+      color: var(--color-muted);
+      font-size: 0.8rem;
+    }
+
+    /* ─── RESPONSIVE ─────────────────────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .container { padding: 0 1.25rem; }
+      nav { padding: 0 1.25rem; }
+      .nav-links { gap: 1.25rem; }
+      section { padding: 3.5rem 0; }
+      #hero { padding: 4rem 0 3.5rem; }
+      .work-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV — rendered by JS -->
+<nav>
+  <span class="nav-name" id="nav-name"></span>
+  <div class="nav-links">
+    <a href="#work">Work</a>
+    <a href="#skills">Skills</a>
+    <a href="#contact">Contact</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="container">
+    <div class="hero-badge" id="hero-badge"></div>
+    <h1 class="hero-name" id="hero-name"></h1>
+    <p class="hero-tagline" id="hero-tagline"></p>
+    <p class="hero-bio" id="hero-bio"></p>
+  </div>
+</section>
+
+<!-- WORK -->
+<section id="work">
+  <div class="container">
+    <h2>Selected Work</h2>
+    <div class="work-grid" id="work-grid"></div>
+  </div>
+</section>
+
+<!-- SKILLS -->
+<section id="skills">
+  <div class="container">
+    <h2>Skills &amp; Tools</h2>
+    <div class="skills-list" id="skills-list"></div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="container">
+    <h2>Get in Touch</h2>
+    <div class="contact-block">
+      <p id="contact-message"></p>
+      <a class="contact-cta" id="contact-cta" href="#">Say hello →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p id="footer-text"></p>
+</footer>
+
+
+<script>
+// ─── DATA — injected by the bot ───────────────────────────────────────────────
+const DATA = {
+  "name": "Diogo Luxo",
+  "tagline": "Senior product designer who transforms complex developer tools and B2B systems into intuitive, high-impact product experiences used at scale.",
+  "bio": "I'm a Senior Product Designer specialising in developer experience, complex B2B SaaS platforms, and product-led growth — exactly the intersection where Figma operates. I bring systems thinking to every project, designing intuitive flows that reduce friction and drive measurable activation and retention. I thrive collaborating closely with engineers and PMs to ship polished, scalable product experiences.",
+  "company": "Figma",
+  "contact": "diogo@example.com",
+  "contactMessage": "I'd love to chat about how I can help shape the core product experiences at Figma — reach out at diogo@example.com.",
+  "skills": [
+    "Interaction Design",
+    "Systems Thinking",
+    "Developer Experience (DX)",
+    "Complex B2B Product Design",
+    "Product-Led Growth (PLG)",
+    "Wireframing & High-Fidelity Prototyping",
+    "Usability Testing & Research",
+    "Cross-functional Collaboration (Engineering & PM)",
+    "Design Handoff",
+    "Figma",
+    "Maze",
+    "Lottie"
+  ],
+  "workItems": [
+    {
+      "title": "Optimizing Developer Onboarding & PLG",
+      "shortIntro": "Redesigned a complex developer onboarding flow, achieving 54% funnel improvement.",
+      "description": "SingleStore's developer onboarding suffered from friction-heavy flows that blocked users from reaching core product value — a systems-level problem requiring rigorous interaction design and cross-functional collaboration. Applying strong PLG principles, I rearchitected the end-to-end onboarding journey across three structured phases, simplifying setup complexity and accelerating time-to-value for developers and data analysts. The redesign delivered a ~54% improvement in onboarding funnel completion and ~50% increase in retention, demonstrating the kind of measurable impact that comes from deep systems thinking applied to a complex B2B product.",
+      "role": "Product Designer — end-to-end design, user research, and cross-functional collaboration with Growth team",
+      "tools": "Figma, Lottie, Maze",
+      "outcome": "54% onboarding funnel improvement and ~50% retention increase post-redesign",
+      "thumbnail": "http://localhost:3000/uploads/1/cs-1-1775855251162/page-1.png",
+      "images": [
+        "http://localhost:3000/uploads/1/cs-1-1775855251162/page-1.png"
+      ],
+      "projectUrl": "/p/preview/work/14"
+    },
+    {
+      "title": "Redesigning the 'Get Started' Page",
+      "shortIntro": "Eliminated onboarding friction for developer trial users, boosting activation by 40%.",
+      "description": "Developers signing up for a complex SaaS platform need to reach their 'aha moment' fast — yet the existing 'Get Started' dashboard blocked access to core features until workspace deployment was complete, creating critical drop-off. Leveraging systems thinking and interaction design, I designed a personalised, parallel-access homepage experience with an incentive-driven onboarding checklist and prominent quick-action shortcuts, enabling developers to take meaningful action immediately. The redesign targeted a 40% reduction in time to first significant action and a 30% increase in onboarding checklist completion — directly addressing activation and retention for a complex B2B developer tool.",
+      "role": "Product Designer — wireframes, high-fidelity mockups, interactive prototypes, stakeholder collaboration",
+      "tools": "Figma",
+      "outcome": "Targeted 40% reduction in time to first action and 30% increase in onboarding checklist completion rate",
+      "thumbnail": "http://localhost:3000/uploads/1/cs-1-1775859034600/page-1.png",
+      "images": [
+        "http://localhost:3000/uploads/1/cs-1-1775859034600/page-1.png"
+      ],
+      "projectUrl": "/p/preview/work/13"
+    },
+    {
+      "title": "Kraken.com Pricing Growth Loop",
+      "shortIntro": "Designed a scalable growth loop converting high-intent organic traffic into first-time buyers.",
+      "description": "Kraken's pricing and asset discovery flows failed to convert high-intent users arriving from organic search — a systems-level conversion problem spanning multiple product surfaces including landing pages, signup flows, and pricing UI. I led design strategy and implementation across a scalable, dynamic asset landing page system, applying progressive disclosure and clear interaction patterns to reduce cognitive load and streamline the path to a first purchase. The resulting growth loop drove measurable increases in organic traffic, first purchase rate, and pages per session, while reducing bounce rate and time to first purchase — demonstrating end-to-end product thinking across a complex B2B and consumer platform.",
+      "role": "Product Designer — design strategy, web pages implementation, cross-functional collaboration",
+      "tools": "Figma",
+      "outcome": "Increase in organic search traffic, reduction in bounce rate, reduction in time to first purchase, increase in first purchase rate",
+      "thumbnail": "http://localhost:3000/uploads/1/cs-1-1775858729924/page-1.png",
+      "images": [
+        "http://localhost:3000/uploads/1/cs-1-1775858729924/page-1.png"
+      ],
+      "projectUrl": "/p/preview/work/12"
+    }
+  ]
+};
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+document.title = `${DATA.name} — Portfolio`;
+document.getElementById("nav-name").textContent = DATA.name;
+document.getElementById("hero-badge").textContent = `Tailored for ${DATA.company || "you"}`;
+document.getElementById("hero-name").textContent = DATA.name;
+document.getElementById("hero-tagline").textContent = DATA.tagline;
+document.getElementById("hero-bio").textContent = DATA.bio;
+
+// Work items — rendered as cards linking to dedicated project pages
+const grid = document.getElementById("work-grid");
+(DATA.workItems || []).forEach(item => {
+  const card = document.createElement("a");
+  card.className = "work-card";
+  card.href = item.projectUrl || "#";
+
+  const thumb = item.thumbnail
+    ? `<img class="work-card-thumb" src="${item.thumbnail}" alt="${item.title}" loading="lazy" />`
+    : `<div class="work-card-thumb-placeholder">🎨</div>`;
+
+  card.innerHTML = `
+    ${thumb}
+    <div class="work-card-body">
+      ${item.role ? `<div class="work-card-role">${item.role}</div>` : ""}
+      <div class="work-card-title">${item.title}</div>
+      <p class="work-card-intro">${item.shortIntro || item.description}</p>
+      <span class="work-card-cta">View case study →</span>
+    </div>
+  `;
+  grid.appendChild(card);
+});
+
+// Skills
+const skillsList = document.getElementById("skills-list");
+(DATA.skills || []).forEach(skill => {
+  const el = document.createElement("span");
+  el.className = "skill-tag";
+  el.textContent = skill;
+  skillsList.appendChild(el);
+});
+
+// Contact
+document.getElementById("contact-message").textContent = DATA.contactMessage || "Open to new opportunities.";
+const cta = document.getElementById("contact-cta");
+if (DATA.contact && DATA.contact.includes("@")) {
+  cta.href = `mailto:${DATA.contact}`;
+  cta.textContent = `${DATA.contact} →`;
+} else {
+  cta.textContent = DATA.contact || "Get in touch →";
+}
+
+document.getElementById("footer-text").textContent =
+  `${DATA.name} · Built with GigBot`;
+</script>
+</body>
+</html>

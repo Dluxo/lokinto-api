@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  telegramId BigInt   @unique
+  username   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  sessions          Session[]
+  savedJobs         SavedJob[]
+  savedLeads        SavedLead[]
+  applications      Application[]
+  followedCompanies FollowedCompany[]
+  jobAlerts         JobAlert[]
+  cv                UserCV?
+  workItems         WorkItem[]
+  portfolios        Portfolio[]
+}
+
+model Session {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  context   Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model SavedJob {
+  id      Int      @id @default(autoincrement())
+  userId  Int
+  title   String
+  company String
+  location String
+  url     String
+  salary  String?
+  jobType String?
+  source  String?
+  savedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, url])
+}
+
+model SavedLead {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  name      String
+  role      String?
+  company   String
+  email     String?
+  linkedIn  String?
+  source    String?
+  savedAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, company, name])
+}
+
+model Application {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  jobTitle  String
+  company   String
+  url       String?
+  status    String    @default("saved")
+  notes     String?
+  appliedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model UserCV {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @unique
+  filename   String
+  rawText    String   @db.Text
+  fileHash   String?  // SHA-256 of the PDF buffer for duplicate detection
+  uploadedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model FollowedCompany {
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  name         String
+  atsType      String?   // "greenhouse" | "lever" | "unknown"
+  atsToken     String?   // board slug used by the ATS
+  desiredRoles String    @default("designer") // comma-separated keywords
+  lastChecked  DateTime?
+  createdAt    DateTime  @default(now())
+
+  user          User       @relation(fields: [userId], references: [id])
+  alerts        JobAlert[]
+
+  @@unique([userId, name])
+}
+
+model JobAlert {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  companyId Int
+  jobTitle  String
+  jobUrl    String
+  sentAt    DateTime @default(now())
+
+  user    User            @relation(fields: [userId], references: [id])
+  company FollowedCompany @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, jobUrl])
+}
+
+model WorkItem {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  title        String
+  description  String   @db.Text
+  role         String?  // user's role in the project
+  tools        String?  // comma-separated tools
+  outcome      String?  // key result / metric
+  imageUrl     String?  // comma-separated image URLs (page screenshots)
+  projectUrl   String?  // link to live project or case study
+  tags         String?  // comma-separated e.g. "mobile, fintech, design systems"
+  sectionsJson String?  @db.Text // JSON array of content sections for the project page
+  fileHash     String?  // SHA-256 of the PDF buffer for duplicate detection
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Portfolio {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  slug        String   @unique
+  jobTitle    String?
+  company     String?
+  htmlContent String   @db.Text
+  viewCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
