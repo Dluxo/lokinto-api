@@ -25,17 +25,68 @@ function detectATS(url: string): ScrapedApplication["atsType"] {
   return "unknown";
 }
 
-// ─── Fetch and strip HTML to readable text ────────────────────────────────────
+function isJobBoard(url: string): boolean {
+  return (
+    url.includes("remotive.com") ||
+    url.includes("himalayas.app") ||
+    url.includes("linkedin.com/jobs") ||
+    url.includes("indeed.com") ||
+    url.includes("glassdoor.com")
+  );
+}
 
-async function fetchPageText(url: string): Promise<string> {
+// ─── Fetch raw HTML ───────────────────────────────────────────────────────────
+
+async function fetchHTML(url: string): Promise<string> {
   const res = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; GigBot/1.0)" },
     signal: AbortSignal.timeout(10000),
   });
-
   if (!res.ok) throw new Error(`Could not fetch ${url}: ${res.status}`);
+  return res.text();
+}
 
-  const html = await res.text();
+// ─── Resolve the real apply URL from a job board listing ─────────────────────
+// Job boards (Remotive, Himalayas) show listings — we need the company's ATS URL
+
+async function resolveApplyUrl(listingUrl: string): Promise<string> {
+  try {
+    const html = await fetchHTML(listingUrl);
+
+    // Extract all href values
+    const hrefPattern = /href=["']([^"']+)["']/gi;
+    const hrefs: string[] = [];
+    let match;
+    while ((match = hrefPattern.exec(html)) !== null) {
+      hrefs.push(match[1]);
+    }
+
+    // Priority: known ATS domains first, then anything with "apply" in the path
+    const atsDomains = ["greenhouse.io", "lever.co", "workable.com", "ashbyhq.com", "smartrecruiters.com", "jobvite.com", "icims.com", "taleo.net", "successfactors.com", "breezy.hr", "recruitee.com"];
+
+    for (const href of hrefs) {
+      const abs = href.startsWith("http") ? href : null;
+      if (!abs) continue;
+      if (atsDomains.some((d) => abs.includes(d))) return abs;
+    }
+
+    // Fallback: look for links with "apply" in the URL
+    for (const href of hrefs) {
+      const abs = href.startsWith("http") ? href : null;
+      if (!abs) continue;
+      if (abs.toLowerCase().includes("apply") && !abs.includes("remotive") && !abs.includes("himalayas")) return abs;
+    }
+  } catch {
+    // If resolution fails, fall back to the original URL
+  }
+
+  return listingUrl;
+}
+
+// ─── Fetch and strip HTML to readable text ────────────────────────────────────
+
+async function fetchPageText(url: string): Promise<string> {
+  const html = await fetchHTML(url);
 
   // Strip scripts, styles, and HTML tags — keep readable text
   const text = html
@@ -93,19 +144,24 @@ If you cannot identify any fields, return an empty array [].`,
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 export async function scrapeApplicationPage(url: string, jobTitle: string, company: string): Promise<ScrapedApplication> {
-  const atsType = detectATS(url);
-
-  // For known ATS, try to get the apply URL directly
+  // Step 1 — if this is a job board listing, find the real company ATS URL
   let applyUrl = url;
-  if (atsType === "greenhouse" && !url.includes("/apply")) {
-    applyUrl = url.endsWith("/") ? `${url}apply` : `${url}/apply`;
-  }
-  if (atsType === "lever" && !url.includes("/apply")) {
-    applyUrl = url.endsWith("/") ? `${url}apply` : `${url}/apply`;
+  if (isJobBoard(url)) {
+    applyUrl = await resolveApplyUrl(url);
+    console.log(`[scraper] resolved ${url} → ${applyUrl}`);
   }
 
+  // Step 2 — for known ATS, make sure we're on the /apply page
+  const atsType = detectATS(applyUrl);
+  if (atsType === "greenhouse" && !applyUrl.includes("/apply")) {
+    applyUrl = applyUrl.endsWith("/") ? `${applyUrl}apply` : `${applyUrl}/apply`;
+  }
+  if (atsType === "lever" && !applyUrl.includes("/apply")) {
+    applyUrl = applyUrl.endsWith("/") ? `${applyUrl}apply` : `${applyUrl}/apply`;
+  }
+
+  // Step 3 — scrape the actual form fields
   let fields: FormField[] = [];
-
   try {
     const pageText = await fetchPageText(applyUrl);
     fields = await extractFields(pageText);
