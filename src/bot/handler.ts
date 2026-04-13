@@ -202,17 +202,29 @@ async function sendApplyWorkflow(
 ): Promise<void> {
   await bot.sendMessage(
     chatId,
-    `🚀 *Applying to ${jobTitle} at ${company}*\n\n_Tailoring your CV and portfolio — this takes ~20 seconds..._`,
+    `🚀 *Applying to ${jobTitle} at ${company}*\n\n_Preparing your application pack — CV, portfolio, and pre-filled answers..._`,
     { parse_mode: "Markdown" }
   );
   await bot.sendChatAction(chatId, "upload_document").catch(() => {});
 
-  const result = await runApplyWorkflow(userId, jobTitle, company, jobUrl, jobDescription);
+  // Run CV/portfolio generation + form scraping in parallel
+  const { scrapeApplicationPage } = await import("../actions/applicationScraper");
+  const { generateApplicationAnswers, formatApplicationPack } = await import("../actions/applicationWriter");
+  const { getUserCV } = await import("../db/cv");
+  const { getWorkItems } = await import("../db/portfolio");
+
+  const [result, cv, workItems] = await Promise.all([
+    runApplyWorkflow(userId, jobTitle, company, jobUrl, jobDescription),
+    getUserCV(userId),
+    getWorkItems(userId),
+  ]);
 
   if ("error" in result && result.error) {
     await bot.sendMessage(chatId, `⚠️ ${result.error}`, { parse_mode: "Markdown" });
     return;
   }
+
+  const appInfo = (result as ApplyResult).application;
 
   // Send tailored CV PDF
   if (result.cv) {
@@ -230,20 +242,119 @@ async function sendApplyWorkflow(
   }
 
   // Send portfolio link
-  const appInfo = (result as ApplyResult).application;
-  const appliedCompany = appInfo.company;
-  const lines: string[] = [`✅ *Application logged: ${appInfo.jobTitle} @ ${appliedCompany}*`, ""];
   if (result.portfolioUrl) {
-    lines.push(`🎨 *Tailored portfolio:* ${result.portfolioUrl}`);
-    lines.push("_Share this link in your application._");
-    lines.push("");
+    await bot.sendMessage(
+      chatId,
+      `🎨 *Tailored portfolio:* ${result.portfolioUrl}\n_Include this link in your application._`,
+      { parse_mode: "Markdown" }
+    );
   }
-  if (!result.cv && !result.portfolioUrl) {
-    lines.push("_Upload your CV and case studies for a fully tailored application package next time._");
-  }
-  lines.push(`💡 Reply \`mark ${appliedCompany} as interviewing\` when you hear back.`);
 
-  await bot.sendMessage(chatId, lines.join("\n"), { parse_mode: "Markdown" });
+  // Scrape application form + generate pre-filled answers
+  if (jobUrl && cv?.rawText) {
+    try {
+      await bot.sendChatAction(chatId, "typing").catch(() => {});
+
+      const workItemsSummary = workItems
+        .slice(0, 3)
+        .map((w) => `• ${w.title}${w.outcome ? ` — ${w.outcome}` : ""}`)
+        .join("\n");
+
+      const [scraped, answers] = await Promise.all([
+        scrapeApplicationPage(jobUrl, jobTitle, company),
+        generateApplicationAnswers(
+          [],  // will be replaced below after scrape
+          cv.rawText,
+          jobTitle,
+          company,
+          result.portfolioUrl,
+          workItemsSummary,
+        ),
+      ]);
+
+      // Re-generate with actual fields from scrape
+      const fullAnswers = scraped.fields.length > 0
+        ? await generateApplicationAnswers(
+            scraped.fields,
+            cv.rawText,
+            jobTitle,
+            company,
+            result.portfolioUrl,
+            workItemsSummary,
+          )
+        : answers;
+
+      // Get the application ID we just created
+      const { getApplications } = await import("../db/jobs");
+      const apps = await getApplications(userId);
+      const latestApp = apps[0]; // most recent
+
+      const pack = formatApplicationPack(
+        jobTitle,
+        company,
+        scraped.applyUrl,
+        fullAnswers,
+        latestApp?.id ?? 0,
+      );
+
+      // Send each message in the pack
+      for (const msg of pack.messages) {
+        await bot.sendMessage(chatId, msg, { parse_mode: "Markdown" }).catch(() =>
+          bot.sendMessage(chatId, msg)
+        );
+      }
+
+      // Send the "I Applied" button
+      await bot.sendMessage(
+        chatId,
+        `_Once you've submitted, tap the button below to update your pipeline._`,
+        {
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [[
+              { text: "✅ I Applied",  callback_data: pack.callbackData },
+              { text: "⏳ Not yet",   callback_data: "apply_later" },
+            ]],
+          },
+        }
+      );
+    } catch (err: any) {
+      console.error("[apply] scrape error:", err.message);
+      // Don't block — just skip the application pack if scraping fails
+      await bot.sendMessage(
+        chatId,
+        `🔗 *Apply directly:* ${jobUrl}\n\n_Tap below once submitted._`,
+        {
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [[
+              { text: "✅ I Applied", callback_data: `applied:${0}` },
+              { text: "⏳ Not yet",  callback_data: "apply_later" },
+            ]],
+          },
+        }
+      );
+    }
+  } else {
+    // No URL — just show status update prompt
+    const { getApplications } = await import("../db/jobs");
+    const apps = await getApplications(userId);
+    const latestApp = apps[0];
+
+    await bot.sendMessage(
+      chatId,
+      `💡 Once you've submitted your application, tap below to track it.`,
+      {
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "✅ I Applied", callback_data: `applied:${latestApp?.id ?? 0}` },
+            { text: "⏳ Not yet",  callback_data: "apply_later" },
+          ]],
+        },
+      }
+    );
+  }
 }
 
 async function handleCVUpload(
@@ -521,6 +632,25 @@ export async function handleUpdate(update: TelegramBot.Update): Promise<void> {
 
       // apply_alert
       await sendApplyWorkflow(chatId, user.id, alertData.jobTitle, alertData.company, alertData.url);
+      return;
+    }
+
+    // ── Applied / Not yet buttons ─────────────────────────────────────────────
+    if (query.data?.startsWith("applied:")) {
+      const appId = parseInt(query.data.split(":")[1], 10);
+      const user  = await upsertUser(chatId, undefined);
+      if (appId > 0) {
+        const { updateApplicationStatus } = await import("../db/jobs");
+        await updateApplicationStatus(user.id, appId, "applied");
+      }
+      await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message?.message_id }).catch(() => {});
+      await bot.sendMessage(chatId, `✅ *Marked as applied!*\n\nI'll remind you to follow up. Reply \`mark [company] as interviewing\` when you hear back.`, { parse_mode: "Markdown" });
+      return;
+    }
+
+    if (query.data === "apply_later") {
+      await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message?.message_id }).catch(() => {});
+      await bot.sendMessage(chatId, `👍 No problem — tap *✅ I Applied* whenever you submit.`, { parse_mode: "Markdown" });
       return;
     }
 
