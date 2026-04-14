@@ -53,8 +53,9 @@ export async function runMonitor(): Promise<void> {
     try {
       const { jobs, atsType, atsToken } = await checkCompanyJobs(
         company.name,
-        company.atsToken ?? undefined,
-        company.atsType ?? undefined
+        company.atsToken   ?? undefined,
+        company.atsType    ?? undefined,
+        (company as any).careersUrl ?? undefined,
       );
 
       const matched = filterByDesiredRoles(jobs, company.desiredRoles);

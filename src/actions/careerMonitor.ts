@@ -91,38 +91,157 @@ async function checkLever(token: string): Promise<AtsJob[]> {
   }
 }
 
+// ─── Workable ─────────────────────────────────────────────────────────────────
+
+interface WorkableJob {
+  title: string;
+  shortlink: string;
+  location?: { city?: string; country?: string };
+  department?: string;
+  created_at?: string;
+}
+
+interface WorkableResponse {
+  jobs: WorkableJob[];
+}
+
+async function checkWorkable(token: string): Promise<AtsJob[]> {
+  const url = `https://apply.workable.com/api/v1/widget/accounts/${token}/jobs`;
+  try {
+    const res = await fetch(url, { headers: { "User-Agent": "GigBot/1.0" } });
+    if (!res.ok) return [];
+    const data = (await res.json()) as WorkableResponse;
+    return (data.jobs ?? []).map((job) => ({
+      title: job.title,
+      url: job.shortlink,
+      location: [job.location?.city, job.location?.country].filter(Boolean).join(", "),
+      department: job.department,
+      postedAt: job.created_at,
+    }));
+  } catch { return []; }
+}
+
+// ─── Ashby ────────────────────────────────────────────────────────────────────
+
+interface AshbyJob {
+  title: string;
+  jobUrl: string;
+  locationName?: string;
+  departmentName?: string;
+  publishedAt?: string;
+}
+
+interface AshbyResponse {
+  jobs?: AshbyJob[];
+}
+
+async function checkAshby(token: string): Promise<AtsJob[]> {
+  const url = `https://api.ashbyhq.com/posting-api/job-board/${token}`;
+  try {
+    const res = await fetch(url, { headers: { "User-Agent": "GigBot/1.0" } });
+    if (!res.ok) return [];
+    const data = (await res.json()) as AshbyResponse;
+    return (data.jobs ?? []).map((job) => ({
+      title: job.title,
+      url: job.jobUrl,
+      location: job.locationName,
+      department: job.departmentName,
+      postedAt: job.publishedAt,
+    }));
+  } catch { return []; }
+}
+
+// ─── Careers page scraper (fallback for custom pages) ────────────────────────
+
+async function checkCareersPage(careersUrl: string, companyName: string): Promise<AtsJob[]> {
+  try {
+    const res = await fetch(careersUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; GigBot/1.0)" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return [];
+
+    const html = await res.text();
+
+    // Extract all links from the page
+    const hrefPattern = /href=["']([^"']+)["'][^>]*>([^<]{3,80})</gi;
+    const jobs: AtsJob[] = [];
+    const seen = new Set<string>();
+    let match;
+
+    const designKeywords = ["design", "ux", "ui ", "product designer", "experience"];
+
+    while ((match = hrefPattern.exec(html)) !== null) {
+      const href  = match[1];
+      const label = match[2].replace(/\s+/g, " ").trim();
+
+      if (!label || label.length < 4) continue;
+
+      const labelLower = label.toLowerCase();
+      const isDesignRole = designKeywords.some((kw) => labelLower.includes(kw));
+      if (!isDesignRole) continue;
+
+      // Build absolute URL
+      const absUrl = href.startsWith("http")
+        ? href
+        : href.startsWith("/")
+          ? new URL(careersUrl).origin + href
+          : careersUrl + "/" + href;
+
+      if (seen.has(absUrl)) continue;
+      seen.add(absUrl);
+
+      jobs.push({ title: label, url: absUrl });
+    }
+
+    return jobs.slice(0, 10); // cap at 10 per company
+  } catch {
+    return [];
+  }
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function checkCompanyJobs(
   companyName: string,
   atsToken?: string,
-  atsType?: string
+  atsType?: string,
+  careersUrl?: string,
 ): Promise<{ jobs: AtsJob[]; atsType: string; atsToken: string }> {
   const token = atsToken ?? companyToToken(companyName);
 
-  // If we already know the ATS type, use it directly
   if (atsType === "greenhouse") {
-    const jobs = await checkGreenhouse(token);
-    return { jobs, atsType: "greenhouse", atsToken: token };
+    return { jobs: await checkGreenhouse(token), atsType: "greenhouse", atsToken: token };
   }
-
   if (atsType === "lever") {
-    const jobs = await checkLever(token);
-    return { jobs, atsType: "lever", atsToken: token };
+    return { jobs: await checkLever(token), atsType: "lever", atsToken: token };
+  }
+  if (atsType === "workable") {
+    return { jobs: await checkWorkable(token), atsType: "workable", atsToken: token };
+  }
+  if (atsType === "ashby") {
+    return { jobs: await checkAshby(token), atsType: "ashby", atsToken: token };
+  }
+  if (atsType === "careers_page" && careersUrl) {
+    return { jobs: await checkCareersPage(careersUrl, companyName), atsType: "careers_page", atsToken: token };
   }
 
-  // Unknown — try both in parallel
-  const [greenhouseJobs, leverJobs] = await Promise.all([
+  // Unknown — try all ATS APIs in parallel, fall back to careers page scrape
+  const [ghJobs, lvJobs, wkJobs, abJobs] = await Promise.all([
     checkGreenhouse(token),
     checkLever(token),
+    checkWorkable(token),
+    checkAshby(token),
   ]);
 
-  if (greenhouseJobs.length > 0) {
-    return { jobs: greenhouseJobs, atsType: "greenhouse", atsToken: token };
-  }
+  if (ghJobs.length > 0) return { jobs: ghJobs, atsType: "greenhouse", atsToken: token };
+  if (lvJobs.length > 0) return { jobs: lvJobs, atsType: "lever",      atsToken: token };
+  if (wkJobs.length > 0) return { jobs: wkJobs, atsType: "workable",   atsToken: token };
+  if (abJobs.length > 0) return { jobs: abJobs, atsType: "ashby",      atsToken: token };
 
-  if (leverJobs.length > 0) {
-    return { jobs: leverJobs, atsType: "lever", atsToken: token };
+  if (careersUrl) {
+    const pageJobs = await checkCareersPage(careersUrl, companyName);
+    if (pageJobs.length > 0) return { jobs: pageJobs, atsType: "careers_page", atsToken: token };
   }
 
   return { jobs: [], atsType: "unknown", atsToken: token };

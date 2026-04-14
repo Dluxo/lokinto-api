@@ -99,8 +99,9 @@ model FollowedCompany {
   id           Int       @id @default(autoincrement())
   userId       Int
   name         String
-  atsType      String?   // "greenhouse" | "lever" | "unknown"
+  atsType      String?   // "greenhouse" | "lever" | "workable" | "ashby" | "careers_page" | "unknown"
   atsToken     String?   // board slug used by the ATS
+  careersUrl   String?   // direct careers page URL for non-ATS companies
   desiredRoles String    @default("designer") // comma-separated keywords
   lastChecked  DateTime?
   createdAt    DateTime  @default(now())
