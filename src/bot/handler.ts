@@ -755,7 +755,7 @@ export async function handleUpdate(update: TelegramBot.Update): Promise<void> {
     clearHistory(chatId);
     await bot.sendMessage(
       chatId,
-      "👋 Hey! I'm *GigBot* — your AI career agent for design roles and freelance gigs.\n\nSend me a message like:\n• _Find senior UX roles remote_\n• _Draft an outreach to Figma's design team_\n• _Research Vercel's design culture_\n• _Find leads at Series B startups_\n\nAfter a job search, reply `save 1` or `save 1 2 3` to bookmark roles.\nType `/status` to see your saved pipeline.",
+      "👋 Hey! I'm *Lokinto* — your AI career agent for design roles and freelance gigs.\n\nSend me a message like:\n• _Find senior UX roles remote_\n• _Draft an outreach to Figma's design team_\n• _Research Vercel's design culture_\n• _Find leads at Series B startups_\n\nAfter a job search, reply `save 1` or `save 1 2 3` to bookmark roles.\nType `/status` to see your saved pipeline.",
       { parse_mode: "Markdown" }
     );
     return;

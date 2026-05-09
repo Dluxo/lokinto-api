@@ -249,7 +249,7 @@ export async function renderCVtoPDF(cv: CVData): Promise<Buffer> {
 
 export async function fetchJobDescription(url: string): Promise<string> {
   const res = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0 GigBot/1.0" },
+    headers: { "User-Agent": "Mozilla/5.0 Lokinto/1.0" },
   });
 
   if (!res.ok) throw new Error(`Could not fetch URL (${res.status})`);

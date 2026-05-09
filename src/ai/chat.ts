@@ -4,7 +4,7 @@ import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
 // In-memory conversation history per chat (chatId → messages)
 const conversationHistory = new Map<number, MessageParam[]>();
 
-const SYSTEM_PROMPT = `You are GigBot, an AI assistant specialized in helping freelancers and job seekers.
+const SYSTEM_PROMPT = `You are Lokinto, an AI assistant specialized in helping freelancers and job seekers.
 You help users:
 - Find job leads and freelance opportunities
 - Draft professional outreach messages

@@ -33,7 +33,7 @@ async function checkGreenhouse(token: string): Promise<AtsJob[]> {
 
   try {
     const res = await fetch(url, {
-      headers: { "User-Agent": "GigBot/1.0" },
+      headers: { "User-Agent": "Lokinto/1.0" },
     });
 
     if (!res.ok) return [];
@@ -71,7 +71,7 @@ async function checkLever(token: string): Promise<AtsJob[]> {
 
   try {
     const res = await fetch(url, {
-      headers: { "User-Agent": "GigBot/1.0" },
+      headers: { "User-Agent": "Lokinto/1.0" },
     });
 
     if (!res.ok) return [];
@@ -108,7 +108,7 @@ interface WorkableResponse {
 async function checkWorkable(token: string): Promise<AtsJob[]> {
   const url = `https://apply.workable.com/api/v1/widget/accounts/${token}/jobs`;
   try {
-    const res = await fetch(url, { headers: { "User-Agent": "GigBot/1.0" } });
+    const res = await fetch(url, { headers: { "User-Agent": "Lokinto/1.0" } });
     if (!res.ok) return [];
     const data = (await res.json()) as WorkableResponse;
     return (data.jobs ?? []).map((job) => ({
@@ -138,7 +138,7 @@ interface AshbyResponse {
 async function checkAshby(token: string): Promise<AtsJob[]> {
   const url = `https://api.ashbyhq.com/posting-api/job-board/${token}`;
   try {
-    const res = await fetch(url, { headers: { "User-Agent": "GigBot/1.0" } });
+    const res = await fetch(url, { headers: { "User-Agent": "Lokinto/1.0" } });
     if (!res.ok) return [];
     const data = (await res.json()) as AshbyResponse;
     return (data.jobs ?? []).map((job) => ({
@@ -156,7 +156,7 @@ async function checkAshby(token: string): Promise<AtsJob[]> {
 async function checkCareersPage(careersUrl: string, companyName: string): Promise<AtsJob[]> {
   try {
     const res = await fetch(careersUrl, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; GigBot/1.0)" },
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Lokinto/1.0)" },
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return [];

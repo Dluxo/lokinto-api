@@ -39,7 +39,7 @@ async function searchRemotiveCompanies(
 
   try {
     const res = await fetch(url, {
-      headers: { "User-Agent": "GigBot/1.0" },
+      headers: { "User-Agent": "Lokinto/1.0" },
     });
 
     if (!res.ok) return [];

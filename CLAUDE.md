@@ -1,7 +1,7 @@
-# GigBot — Project Memory
+# Lokinto — Project Memory
 
 ## What This Is
-GigBot is a Telegram-based AI career agent for product designers. It finds jobs, generates tailored CVs, manages leads, and builds portfolio websites from uploaded case study PDFs.
+Lokinto is a Telegram-based AI career agent for product designers. It finds jobs, generates tailored CVs, manages leads, and builds portfolio websites from uploaded case study PDFs.
 
 ---
 

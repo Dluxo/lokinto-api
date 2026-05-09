@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
 import { anthropic } from "../ai/client";
+import { addWorkItem } from "../db/portfolio";
+import { extractTextFromPDF, extractPDFPages } from "./cvParser";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -266,4 +268,116 @@ export function saveCaseStudyContent(
   const mdPath = path.join(dir, "content.md");
   fs.writeFileSync(mdPath, lines.join("\n"), "utf-8");
   return mdPath;
+}
+
+// ─── Transport-agnostic case study processing ─────────────────────────────────
+
+/**
+ * Runs the full case study pipeline (extract → Claude vision → save → DB) without
+ * any Telegram dependency. Used by both the bot handler and the REST API.
+ */
+export async function processCaseStudy(
+  userId: number,
+  buffer: Buffer,
+  filename: string,
+  fileHash?: string,
+): Promise<{ workItemId: number; title: string }> {
+  const baseUrl = process.env.BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
+  const slug    = `cs-${userId}-${Date.now()}`;
+
+  const [rawText, pages] = await Promise.all([
+    extractTextFromPDF(buffer),
+    extractPDFPages(buffer, 10),
+  ]);
+
+  if (pages.length > 0) {
+    saveCaseStudyImages(userId, slug, pages, baseUrl);
+  }
+
+  const visionContent: Array<{ type: string; [k: string]: unknown }> = [
+    {
+      type: "text",
+      text: `This is a designer's case study PDF with ${pages.length} pages. Read every page carefully — extract all text content, headings, bullet points, metrics, and describe any diagrams or visuals in words.\n\nExtracted text for reference:\n${rawText.slice(0, 6000)}`,
+    },
+  ];
+
+  for (const page of pages.slice(0, 10)) {
+    visionContent.push({
+      type: "image",
+      source: { type: "base64", media_type: "image/png", data: page.png.toString("base64") },
+    });
+    visionContent.push({ type: "text", text: `↑ Page ${page.pageNumber}` });
+  }
+
+  visionContent.push({
+    type: "text",
+    text: `Now create a structured case study. Output ONLY valid JSON — no markdown, no extra text:
+{
+  "title": "project name",
+  "role": "designer's specific role",
+  "tools": "comma-separated tools used",
+  "outcome": "key result or metric",
+  "tags": "comma-separated tags",
+  "shortIntro": "one sentence hook for the portfolio card (max 12 words)",
+  "sections": [
+    { "type": "heading", "text": "Section heading" },
+    { "type": "paragraph", "text": "Full paragraph of real content from the PDF" },
+    { "type": "stats", "items": [{ "value": "40%", "label": "drop-off reduction" }] }
+  ]
+}
+
+Rules:
+- Extract the ACTUAL text — reproduce real content, don't summarise
+- ONLY use "heading", "paragraph", and "stats" section types — NO image sections
+- Structure into: Problem/Challenge, Research/Process, Solution/Design, Results/Outcome
+- Use "stats" blocks for any key metrics or numbers
+- Describe any diagrams or visual content as text in paragraph sections`,
+  });
+
+  const structureRes = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 4096,
+    messages: [{ role: "user", content: visionContent as never }],
+  });
+
+  const raw  = structureRes.content[0].type === "text" ? structureRes.content[0].text.trim() : "{}";
+  const json = raw.replace(/^```(?:json)?\n?/i, "").replace(/\n?```$/, "").trim();
+
+  type StructuredCS = {
+    title?: string; role?: string; tools?: string; outcome?: string;
+    tags?: string; shortIntro?: string;
+    sections?: Array<{ type: string; text?: string; items?: Array<{ value: string; label: string }> }>;
+  };
+
+  let structured: StructuredCS = {};
+  try { structured = JSON.parse(json); } catch { /* use defaults */ }
+
+  saveCaseStudyContent(userId, slug, {
+    title:      structured.title     ?? filename.replace(".pdf", ""),
+    role:       structured.role,
+    tools:      structured.tools,
+    outcome:    structured.outcome,
+    tags:       structured.tags,
+    shortIntro: structured.shortIntro,
+    sections:   structured.sections,
+  });
+
+  const sectionsJson    = structured.sections ? JSON.stringify(structured.sections) : undefined;
+  const plainDescription = structured.sections
+    ? (structured.sections.find((s) => s.type === "paragraph") as { text?: string } | undefined)?.text ?? rawText.slice(0, 300)
+    : rawText.slice(0, 300);
+
+  const item = await addWorkItem(userId, {
+    title:       structured.title ?? filename.replace(".pdf", ""),
+    description: plainDescription,
+    role:        structured.role,
+    tools:       structured.tools,
+    outcome:     structured.outcome,
+    imageUrl:    `${baseUrl}/uploads/${userId}/${slug}/pages/`,
+    tags:        structured.tags,
+    sectionsJson,
+    fileHash,
+  });
+
+  return { workItemId: item.id, title: item.title };
 }

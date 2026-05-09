@@ -39,7 +39,7 @@ function isJobBoard(url: string): boolean {
 
 async function fetchHTML(url: string): Promise<string> {
   const res = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; GigBot/1.0)" },
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; Lokinto/1.0)" },
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`Could not fetch ${url}: ${res.status}`);

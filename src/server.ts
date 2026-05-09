@@ -7,6 +7,7 @@ import { handleUpdate } from "./bot/handler";
 import { startMonitor } from "./jobs/monitor";
 import { getPortfolioBySlug, incrementViewCount, getWorkItemById } from "./db/portfolio";
 import { generateProjectPage } from "./actions/portfolioGenerator";
+import apiRouter from "./api/index";
 
 // Ensure uploads directory exists (Railway filesystem is writable but empty on first boot)
 fs.mkdirSync(path.join(process.cwd(), "public", "uploads"), { recursive: true });
@@ -72,7 +73,9 @@ app.get("/p/:slug/work/:workId", async (req: Request, res: Response) => {
   }
 });
 
+app.use("/api", apiRouter);
+
 app.listen(PORT, () => {
-  console.log(`Gig-bot webhook server listening on port ${PORT}`);
+  console.log(`Lokinto webhook server listening on port ${PORT}`);
   startMonitor();
 });

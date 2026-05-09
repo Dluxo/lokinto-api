@@ -9,12 +9,22 @@ datasource db {
 
 model User {
   id         Int      @id @default(autoincrement())
-  telegramId BigInt   @unique
+  telegramId BigInt?  @unique
+  googleId   String?  @unique
+  email      String?  @unique
+  name       String?
+  jobTitle   String?
+  location   String?
+  experience String?  // "0-2" | "3-5" | "6-10" | "10+"
   username   String?
+  pushToken  String?  // Expo push token for mobile notifications
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   sessions          Session[]
+  authTokens        AuthToken[]
+  notifications     Notification[]
+  industryFollows   IndustryFollow[]
   savedJobs         SavedJob[]
   savedLeads        SavedLead[]
   applications      Application[]
@@ -156,4 +166,38 @@ model Portfolio {
   createdAt   DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model AuthToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  type      String   // "new_role" | "interview_reminder" | "application_sent" | "application_processing"
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model IndustryFollow {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  industry  String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, industry])
 }
