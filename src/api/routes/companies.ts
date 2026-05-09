@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import { AuthRequest, requireAuth } from "../middleware/auth";
 import { prisma } from "../../db/client";
+import { runMonitorForUser } from "../../jobs/monitor";
 
 const router = Router();
 router.use(requireAuth);
@@ -67,17 +68,31 @@ router.get("/industries", async (req: AuthRequest, res: Response) => {
   res.json(industries.map((i) => i.industry));
 });
 
-// POST /api/companies/industries — follow an industry
+// POST /api/companies/industries — follow an industry (or bulk: { industries: string[] })
 router.post("/industries", async (req: AuthRequest, res: Response) => {
-  const { industry } = req.body as { industry?: string };
-  if (!industry) { res.status(400).json({ error: "industry is required" }); return; }
+  const body = req.body as { industry?: string; industries?: string[] };
 
-  await prisma.industryFollow.upsert({
-    where: { userId_industry: { userId: req.userId!, industry } },
-    update: {},
-    create: { userId: req.userId!, industry },
-  });
-  res.status(201).json({ ok: true, industry });
+  const list: string[] = body.industries?.length
+    ? body.industries
+    : body.industry
+      ? [body.industry]
+      : [];
+
+  if (list.length === 0) {
+    res.status(400).json({ error: "industry or industries is required" });
+    return;
+  }
+
+  await Promise.all(
+    list.map((industry) =>
+      prisma.industryFollow.upsert({
+        where: { userId_industry: { userId: req.userId!, industry } },
+        update: {},
+        create: { userId: req.userId!, industry },
+      })
+    )
+  );
+  res.status(201).json({ ok: true, industries: list });
 });
 
 // DELETE /api/companies/industries/:name — unfollow an industry
@@ -85,6 +100,15 @@ router.delete("/industries/:name", async (req: AuthRequest, res: Response) => {
   const industry = decodeURIComponent(req.params["name"] as string);
   await prisma.industryFollow.deleteMany({ where: { userId: req.userId, industry } });
   res.json({ ok: true });
+});
+
+// POST /api/companies/scan — trigger an on-demand job scan for the current user
+router.post("/scan", async (req: AuthRequest, res: Response) => {
+  const userId = req.userId!;
+  setImmediate(async () => {
+    try { await runMonitorForUser(userId); } catch (err) { console.error("[scan]", err); }
+  });
+  res.json({ ok: true, message: "Scan started" });
 });
 
 export default router;

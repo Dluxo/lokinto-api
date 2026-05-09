@@ -23,15 +23,16 @@ export interface InterviewPrepPack {
   openingStatement: string;
 }
 
-// In-memory cache: applicationId → prep pack
-const prepCache = new Map<number, InterviewPrepPack>();
-
-// GET /api/interview/:applicationId — return cached pack if available
+// GET /api/interview/:applicationId — return persisted pack if available
 router.get("/:applicationId", async (req: AuthRequest, res: Response) => {
   const appId = Number(req.params["applicationId"]);
-  const cached = prepCache.get(appId);
-  if (cached) { res.json(cached); return; }
-  res.status(404).json({ error: "No prep pack generated yet" });
+  const app = await prisma.application.findFirst({
+    where: { id: appId, userId: req.userId },
+    select: { prepPackJson: true },
+  });
+  if (!app) { res.status(404).json({ error: "Application not found" }); return; }
+  if (!app.prepPackJson) { res.status(404).json({ error: "No prep pack generated yet" }); return; }
+  res.json(JSON.parse(app.prepPackJson));
 });
 
 // POST /api/interview/:applicationId — generate prep pack
@@ -132,7 +133,11 @@ Include 5-7 likely questions, 2-3 case studies (or fewer if they have fewer). Be
     if (!jsonMatch) throw new Error("No JSON in AI response");
 
     const pack: InterviewPrepPack = JSON.parse(jsonMatch[0]);
-    prepCache.set(appId, pack);
+
+    await prisma.application.update({
+      where: { id: appId },
+      data: { prepPackJson: JSON.stringify(pack) },
+    });
 
     res.json(pack);
   } catch (err) {

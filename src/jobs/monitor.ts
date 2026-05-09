@@ -123,6 +123,55 @@ export async function runMonitor(): Promise<void> {
   console.log("[monitor] Check complete.");
 }
 
+// ─── Per-user on-demand scan (no Telegram — DB + push only) ──────────────────
+
+export async function runMonitorForUser(userId: number): Promise<number> {
+  const { prisma } = await import("../db/client");
+  const { sendPushToUser } = await import("../notifications/push");
+
+  const companies = await prisma.followedCompany.findMany({
+    where: { userId },
+  });
+  if (companies.length === 0) return 0;
+
+  let newTotal = 0;
+  for (const company of companies) {
+    try {
+      const { jobs, atsType, atsToken } = await checkCompanyJobs(
+        company.name,
+        company.atsToken  ?? undefined,
+        company.atsType   ?? undefined,
+        company.careersUrl ?? undefined,
+      );
+      const matched = filterByDesiredRoles(jobs, company.desiredRoles);
+      const alertedUrls = await getAlertedUrls(company.id);
+      const newJobs = matched.filter((j) => !alertedUrls.includes(j.url));
+
+      for (const job of newJobs) {
+        await recordAlert(userId, company.id, job.title, job.url);
+        await sendPushToUser(userId, {
+          title: `New role at ${company.name}`,
+          body: job.title,
+          data: { type: "new_role", jobUrl: job.url },
+        }).catch(() => {});
+        newTotal++;
+      }
+
+      await updateLastChecked(company.id);
+
+      if ((company.atsType == null || company.atsType === "unknown") && atsType !== "unknown") {
+        await prisma.followedCompany.update({
+          where: { id: company.id },
+          data: { atsType, atsToken },
+        });
+      }
+    } catch (err) {
+      console.error(`[monitor] Error scanning ${company.name} for user ${userId}:`, err);
+    }
+  }
+  return newTotal;
+}
+
 // ─── Scheduler ────────────────────────────────────────────────────────────────
 
 export function startMonitor(): void {

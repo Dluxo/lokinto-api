@@ -10,6 +10,7 @@ import portfolioRouter     from "./routes/portfolio";
 import notificationsRouter from "./routes/notifications";
 import chatRouter          from "./routes/chat";
 import interviewRouter     from "./routes/interview";
+import leadsRouter         from "./routes/leads";
 
 const api = Router();
 
@@ -24,5 +25,6 @@ api.use("/portfolio",     portfolioRouter);
 api.use("/notifications", notificationsRouter);
 api.use("/chat",          chatRouter);
 api.use("/interview",     interviewRouter);
+api.use("/leads",         leadsRouter);
 
 export default api;

@@ -7,9 +7,6 @@ import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
 const router = Router();
 router.use(requireAuth);
 
-// In-memory conversation history per user (userId → MessageParam[])
-const sessions = new Map<number, MessageParam[]>();
-
 const BASE_PROMPT = `You are Lokinto, an AI career assistant specialised in helping product designers.
 You help users:
 - Understand job opportunities and what companies are looking for
@@ -100,9 +97,9 @@ router.post("/", async (req: AuthRequest, res: Response) => {
   const userId = req.userId!;
   const systemPrompt = await buildSystemPrompt(userId);
 
-  // Get / init session history
-  if (!sessions.has(userId)) sessions.set(userId, []);
-  const history = sessions.get(userId)!;
+  // Load persisted history
+  const session = await prisma.chatSession.findUnique({ where: { userId } });
+  const history: MessageParam[] = session ? JSON.parse(session.messagesJson) : [];
   history.push({ role: "user", content: message.trim() });
 
   // Keep last 40 messages (20 turns)
@@ -121,7 +118,13 @@ router.post("/", async (req: AuthRequest, res: Response) => {
         ? response.content[0].text
         : "Sorry, I couldn't process that.";
 
-    history.push({ role: "assistant", content: reply });
+    const updatedHistory = trimmed.concat([{ role: "assistant" as const, content: reply }]);
+    await prisma.chatSession.upsert({
+      where: { userId },
+      update: { messagesJson: JSON.stringify(updatedHistory) },
+      create: { userId, messagesJson: JSON.stringify(updatedHistory) },
+    });
+
     res.json({ reply });
   } catch (err) {
     console.error("[chat] AI error:", err);
@@ -130,8 +133,10 @@ router.post("/", async (req: AuthRequest, res: Response) => {
 });
 
 // DELETE /api/chat — clear session history
-router.delete("/", (req: AuthRequest, res: Response) => {
-  if (req.userId) sessions.delete(req.userId);
+router.delete("/", async (req: AuthRequest, res: Response) => {
+  if (req.userId) {
+    await prisma.chatSession.deleteMany({ where: { userId: req.userId } });
+  }
   res.json({ ok: true });
 });
 
