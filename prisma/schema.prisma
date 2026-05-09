@@ -108,15 +108,18 @@ model UserCV {
 }
 
 model FollowedCompany {
-  id           Int       @id @default(autoincrement())
-  userId       Int
-  name         String
-  atsType      String?   // "greenhouse" | "lever" | "workable" | "ashby" | "careers_page" | "unknown"
-  atsToken     String?   // board slug used by the ATS
-  careersUrl   String?   // direct careers page URL for non-ATS companies
-  desiredRoles String    @default("designer") // comma-separated keywords
-  lastChecked  DateTime?
-  createdAt    DateTime  @default(now())
+  id             Int       @id @default(autoincrement())
+  userId         Int
+  name           String
+  atsType        String?   // "greenhouse" | "lever" | "workable" | "ashby" | "careers_page" | "unknown"
+  atsToken       String?   // board slug used by the ATS
+  careersUrl     String?   // direct careers page URL for non-ATS companies
+  desiredRoles   String    @default("designer") // comma-separated keywords
+  industry       String?   // "Fintech" | "SaaS" | "HealthTech" | "EdTech" | "E-commerce" | "AI / ML" | "Crypto / Web3" | "Media" | "Gaming" | "Climate"
+  continent      String?   // "North America" | "Europe" | "Asia" | "Latin America" | "Africa" | "Oceania" | "Global"
+  remoteFriendly Boolean   @default(false)
+  lastChecked    DateTime?
+  createdAt      DateTime  @default(now())
 
   user          User       @relation(fields: [userId], references: [id])
   alerts        JobAlert[]
