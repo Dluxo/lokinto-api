@@ -16,12 +16,15 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       jobTitle: true,
       location: true,
       experience: true,
+      currentLevel: true,
+      targetRoles: true,
+      strengths: true,
       createdAt: true,
       _count: {
         select: {
           applications: true,
           followedCompanies: true,
-          workItems: true,
+          evidence: true,
           notifications: true,
         },
       },
@@ -33,17 +36,29 @@ router.get("/", async (req: AuthRequest, res: Response) => {
 
 // PUT /api/me — update profile
 router.put("/", async (req: AuthRequest, res: Response) => {
-  const { name, jobTitle, location, experience } = req.body as {
+  const { name, jobTitle, location, experience, currentLevel, targetRoles } = req.body as {
     name?: string;
     jobTitle?: string;
     location?: string;
     experience?: string;
+    currentLevel?: string;
+    targetRoles?: string[];
   };
 
   const user = await prisma.user.update({
     where: { id: req.userId },
-    data: { name, jobTitle, location, experience },
-    select: { id: true, email: true, name: true, jobTitle: true, location: true, experience: true },
+    data: {
+      name,
+      jobTitle,
+      location,
+      experience,
+      currentLevel,
+      targetRoles: targetRoles !== undefined ? JSON.stringify(targetRoles) : undefined,
+    },
+    select: {
+      id: true, email: true, name: true, jobTitle: true,
+      location: true, experience: true, currentLevel: true, targetRoles: true, strengths: true,
+    },
   });
   res.json(user);
 });

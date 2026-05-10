@@ -2,6 +2,9 @@ import { Router, Response } from "express";
 import { AuthRequest, requireAuth } from "../middleware/auth";
 import { prisma } from "../../db/client";
 import { runMonitorForUser } from "../../jobs/monitor";
+import OpenAI from "openai";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const router = Router();
 router.use(requireAuth);
@@ -109,6 +112,58 @@ router.post("/scan", async (req: AuthRequest, res: Response) => {
     try { await runMonitorForUser(userId); } catch (err) { console.error("[scan]", err); }
   });
   res.json({ ok: true, message: "Scan started" });
+});
+
+// POST /api/companies/:id/fit — compute AI fit score against user's evidence
+router.post("/:id/fit", async (req: AuthRequest, res: Response) => {
+  const companyId = Number(req.params["id"]);
+  const userId = req.userId!;
+
+  const [company, evidence, user] = await Promise.all([
+    prisma.followedCompany.findFirst({ where: { id: companyId, userId } }),
+    prisma.evidence.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 20 }),
+    prisma.user.findUnique({ where: { id: userId }, select: { targetRoles: true, currentLevel: true, jobTitle: true } }),
+  ]);
+
+  if (!company) { res.status(404).json({ error: "Company not found" }); return; }
+  if (!evidence.length) { res.status(400).json({ error: "No evidence found. Log achievements first." }); return; }
+
+  const targetRoles = user?.targetRoles ? JSON.parse(user.targetRoles) : [user?.jobTitle ?? "tech role"];
+  const evidenceSummary = evidence.map((e) =>
+    `[${e.roleType}] ${e.title} — ${e.impact ?? "no metric"} (skills: ${e.skills ?? "n/a"})`
+  ).join("\n");
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content: `You assess how well a candidate's evidence matches a target company and role.
+Return JSON: { score: number (0-1), summary: string (1 sentence), strengths: string[], gaps: string[] }`,
+      },
+      {
+        role: "user",
+        content: `Company: ${company.name} (${company.industry ?? "tech"}, ${company.continent ?? "global"})
+Stack: ${company.stack ?? "unknown"}
+Target roles: ${targetRoles.join(", ")}
+Level: ${user?.currentLevel ?? "not specified"}
+
+Candidate evidence:
+${evidenceSummary}`,
+      },
+    ],
+  });
+
+  const result = JSON.parse(completion.choices[0].message.content ?? "{}");
+  const score = Math.max(0, Math.min(1, Number(result.score) || 0));
+
+  await prisma.followedCompany.update({
+    where: { id: companyId },
+    data: { fitScore: score },
+  });
+
+  res.json({ fitScore: score, summary: result.summary, strengths: result.strengths, gaps: result.gaps });
 });
 
 export default router;
