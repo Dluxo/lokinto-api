@@ -25,13 +25,30 @@ router.get("/search", async (req: AuthRequest, res: Response) => {
   res.json(companies);
 });
 
-// GET /api/companies/followed — companies the user follows
+// GET /api/companies/followed?q=&industry=&take=50&skip=0
 router.get("/followed", async (req: AuthRequest, res: Response) => {
-  const companies = await prisma.followedCompany.findMany({
-    where: { userId: req.userId },
-    orderBy: { createdAt: "desc" },
-  });
-  res.json(companies);
+  const q        = ((req.query["q"]        as string) ?? "").trim();
+  const industry = ((req.query["industry"] as string) ?? "").trim();
+  const take     = Math.min(Number(req.query["take"]) || 50, 100);
+  const skip     = Number(req.query["skip"]) || 0;
+
+  const where = {
+    userId: req.userId!,
+    ...(q        ? { name:     { contains: q,        mode: "insensitive" as const } } : {}),
+    ...(industry ? { industry: { contains: industry, mode: "insensitive" as const } } : {}),
+  };
+
+  const [companies, total] = await Promise.all([
+    prisma.followedCompany.findMany({
+      where,
+      orderBy: [{ fitScore: "desc" }, { name: "asc" }],
+      take,
+      skip,
+    }),
+    prisma.followedCompany.count({ where }),
+  ]);
+
+  res.json({ companies, total, take, skip });
 });
 
 // POST /api/companies/follow — follow a company
