@@ -7,6 +7,7 @@ import { handleUpdate } from "./bot/handler";
 import { startMonitor } from "./jobs/monitor";
 import { getPortfolioBySlug, incrementViewCount, getWorkItemById } from "./db/portfolio";
 import { generateProjectPage } from "./actions/portfolioGenerator";
+import { prisma } from "./db/client";
 import apiRouter from "./api/index";
 
 // Ensure uploads directory exists (Railway filesystem is writable but empty on first boot)
@@ -38,6 +39,16 @@ app.get("/health", (_req: Request, res: Response) => {
 app.get("/p/:slug", async (req: Request, res: Response) => {
   try {
     const slug = req.params["slug"] as string;
+
+    // Check new CareerArtifact case studies first
+    const artifact = await prisma.careerArtifact.findUnique({ where: { slug } });
+    if (artifact) {
+      await prisma.careerArtifact.update({ where: { id: artifact.id }, data: { viewCount: { increment: 1 } } });
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      return res.send(artifact.content);
+    }
+
+    // Fall back to legacy Portfolio
     const portfolio = await getPortfolioBySlug(slug);
     if (!portfolio) {
       res.status(404).send("<h1>Portfolio not found</h1>");

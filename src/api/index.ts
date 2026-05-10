@@ -11,6 +11,8 @@ import notificationsRouter from "./routes/notifications";
 import chatRouter          from "./routes/chat";
 import interviewRouter     from "./routes/interview";
 import leadsRouter         from "./routes/leads";
+import evidenceRouter      from "./routes/evidence";
+import artifactsRouter     from "./routes/artifacts";
 
 const api = Router();
 
@@ -26,5 +28,7 @@ api.use("/notifications", notificationsRouter);
 api.use("/chat",          chatRouter);
 api.use("/interview",     interviewRouter);
 api.use("/leads",         leadsRouter);
+api.use("/evidence",      evidenceRouter);
+api.use("/artifacts",     artifactsRouter);
 
 export default api;

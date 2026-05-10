@@ -8,18 +8,22 @@ datasource db {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  telegramId BigInt?  @unique
-  googleId   String?  @unique
-  email      String?  @unique
-  name       String?
-  jobTitle   String?
-  location   String?
-  experience String?  // "0-2" | "3-5" | "6-10" | "10+"
-  username   String?
-  pushToken  String?  // Expo push token for mobile notifications
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id           Int      @id @default(autoincrement())
+  telegramId   BigInt?  @unique
+  googleId     String?  @unique
+  email        String?  @unique
+  name         String?
+  jobTitle     String?
+  location     String?
+  experience   String?  // "0-2" | "3-5" | "6-10" | "10+"
+  username     String?
+  pushToken    String?  // Expo push token for mobile notifications
+  // Career profile
+  currentLevel String?  // "junior" | "mid" | "senior" | "staff" | "principal" | "lead" | "director" | "vp"
+  targetRoles  String?  // JSON array e.g. ["Staff PM", "Head of Product"]
+  strengths    String?  // JSON array — AI-inferred from evidence over time
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   sessions          Session[]
   authTokens        AuthToken[]
@@ -34,6 +38,8 @@ model User {
   workItems         WorkItem[]
   portfolios        Portfolio[]
   chatSession       ChatSession?
+  evidence          Evidence[]
+  careerArtifacts   CareerArtifact[]
 }
 
 model Session {
@@ -108,21 +114,28 @@ model UserCV {
 }
 
 model FollowedCompany {
-  id             Int       @id @default(autoincrement())
-  userId         Int
-  name           String
-  atsType        String?   // "greenhouse" | "lever" | "workable" | "ashby" | "careers_page" | "unknown"
-  atsToken       String?   // board slug used by the ATS
-  careersUrl     String?   // direct careers page URL for non-ATS companies
-  desiredRoles   String    @default("designer") // comma-separated keywords
-  industry       String?   // "Fintech" | "SaaS" | "HealthTech" | "EdTech" | "E-commerce" | "AI / ML" | "Crypto / Web3" | "Media" | "Gaming" | "Climate"
-  continent      String?   // "North America" | "Europe" | "Asia" | "Latin America" | "Africa" | "Oceania" | "Global"
-  remoteFriendly Boolean   @default(false)
-  lastChecked    DateTime?
-  createdAt      DateTime  @default(now())
+  id                   Int       @id @default(autoincrement())
+  userId               Int
+  name                 String
+  atsType              String?   // "greenhouse" | "lever" | "workable" | "ashby" | "careers_page" | "unknown"
+  atsToken             String?   // board slug used by the ATS
+  careersUrl           String?   // direct careers page URL for non-ATS companies
+  desiredRoles         String    @default("designer") // comma-separated keywords
+  industry             String?   // "Fintech" | "SaaS" | "HealthTech" | "EdTech" | "E-commerce" | "AI / ML" | "Crypto / Web3" | "Media" | "Gaming" | "Climate"
+  continent            String?   // "North America" | "Europe" | "Asia" | "Latin America" | "Africa" | "Oceania" | "Global"
+  remoteFriendly       Boolean   @default(false)
+  // Company intelligence
+  stack                String?   // JSON array of tech/tools they use
+  hiringManagerName    String?
+  hiringManagerRole    String?
+  hiringManagerLinkedIn String?
+  fitScore             Float?    // AI-computed 0-1 match against user's evidence
+  lastChecked          DateTime?
+  createdAt            DateTime  @default(now())
 
-  user          User       @relation(fields: [userId], references: [id])
-  alerts        JobAlert[]
+  user            User             @relation(fields: [userId], references: [id])
+  alerts          JobAlert[]
+  careerArtifacts CareerArtifact[]
 
   @@unique([userId, name])
 }
@@ -214,4 +227,44 @@ model IndustryFollow {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, industry])
+}
+
+model Evidence {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  title       String
+  summary     String    @db.Text
+  roleType    String    // "eng" | "pm" | "data" | "design" | "ops" | "leadership"
+  impact      String?   // key result / metric
+  skills      String?   // JSON array e.g. ["React", "LLM fine-tuning"]
+  aiInvolved  Boolean   @default(false)
+  periodFrom  DateTime?
+  periodTo    DateTime?
+  artifactsJson String? @db.Text // JSON array of { url, type, label }
+  rawNotes    String?   @db.Text // unstructured input before AI structures it
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  careerArtifacts CareerArtifact[]
+}
+
+model CareerArtifact {
+  id              Int       @id @default(autoincrement())
+  userId          Int
+  type            String    // "cv" | "interview_pack" | "case_study" | "skill_proof" | "outreach_message"
+  targetRole      String?
+  targetCompanyId Int?
+  content         String    @db.Text
+  evidenceIds     String?   // JSON array of Evidence IDs used to generate this
+  version         Int       @default(1)
+  slug            String?   @unique // for public case study pages
+  viewCount       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetCompany FollowedCompany? @relation(fields: [targetCompanyId], references: [id])
+  evidence      Evidence[]
 }
