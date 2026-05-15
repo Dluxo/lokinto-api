@@ -3,7 +3,6 @@ dotenv.config({ override: true }); // override: true forces dotenv to overwrite 
 import express, { Request, Response } from "express";
 import path from "path";
 import fs from "fs";
-import { handleUpdate } from "./bot/handler";
 import { startMonitor } from "./jobs/monitor";
 import { getPortfolioBySlug, incrementViewCount, getWorkItemById } from "./db/portfolio";
 import { generateProjectPage } from "./actions/portfolioGenerator";
@@ -22,15 +21,6 @@ app.use("/public", express.static(path.join(process.cwd(), "public")));
 
 const PORT = process.env.PORT || 3000;
 
-app.post("/webhook", async (req: Request, res: Response) => {
-  try {
-    await handleUpdate(req.body);
-    res.sendStatus(200);
-  } catch (err) {
-    console.error("Error handling update:", err);
-    res.sendStatus(500);
-  }
-});
 
 app.get("/health", (_req: Request, res: Response) => {
   res.json({ status: "ok" });
