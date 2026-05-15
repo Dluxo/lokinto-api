@@ -1,4 +1,3 @@
-import { bot } from "../bot/handler";
 import { checkCompanyJobs, filterByDesiredRoles } from "../actions/careerMonitor";
 import {
   getAllFollowedCompanies,
@@ -6,30 +5,7 @@ import {
   recordAlert,
   getAlertedUrls,
 } from "../db/companies";
-import { storeAlert } from "../bot/alertCache";
-
-// ─── Notification formatter ───────────────────────────────────────────────────
-
-function formatAlert(
-  companyName: string,
-  jobTitle: string,
-  location: string | undefined,
-  jobUrl: string,
-  desiredRoles: string
-): string {
-  const lines = [
-    `🔔 *New design role at ${companyName}!*`,
-    "",
-    `*${jobTitle}*`,
-  ];
-
-  if (location) lines.push(`📍 ${location}`);
-  lines.push(`🔗 ${jobUrl}`);
-  lines.push("");
-  lines.push(`_You're following ${companyName} for "${desiredRoles}" roles._`);
-
-  return lines.join("\n");
-}
+import { sendPushToUser } from "../notifications/push";
 
 // ─── Core monitor logic ───────────────────────────────────────────────────────
 
@@ -64,36 +40,12 @@ export async function runMonitor(): Promise<void> {
       const newJobs = matched.filter((job) => !alertedUrls.includes(job.url));
 
       for (const job of newJobs) {
-        // Get the Telegram chat ID from the related user (telegramId is a BigInt)
-        const chatId = Number(company.user.telegramId);
-
-        const message = formatAlert(
-          company.name,
-          job.title,
-          job.location,
-          job.url,
-          company.desiredRoles
-        );
-
-        try {
-          const alertId = storeAlert({ jobTitle: job.title, company: company.name, url: job.url });
-          await bot.sendMessage(chatId, message, {
-            parse_mode: "Markdown",
-            reply_markup: {
-              inline_keyboard: [[
-                { text: "🚀 Apply Now", callback_data: `apply_alert:${alertId}` },
-                { text: "💾 Save",      callback_data: `save_alert:${alertId}` },
-              ]],
-            },
-          });
-        } catch (sendErr) {
-          console.error(
-            `[monitor] Failed to send alert to user ${company.userId} for ${company.name}:`,
-            sendErr
-          );
-        }
-
         await recordAlert(company.userId, company.id, job.title, job.url);
+        await sendPushToUser(company.userId, {
+          title: `New role at ${company.name}`,
+          body: job.title,
+          data: { screen: "pipeline", jobUrl: job.url },
+        }).catch(() => {});
       }
 
       await updateLastChecked(company.id);
