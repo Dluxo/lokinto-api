@@ -40,6 +40,7 @@ model User {
   chatSession       ChatSession?
   evidence          Evidence[]
   careerArtifacts   CareerArtifact[]
+  jobMatches        JobMatch[]
 }
 
 model Session {
@@ -136,6 +137,7 @@ model FollowedCompany {
   user            User             @relation(fields: [userId], references: [id])
   alerts          JobAlert[]
   careerArtifacts CareerArtifact[]
+  jobMatches      JobMatch[]
 
   @@unique([userId, name])
 }
@@ -267,4 +269,22 @@ model CareerArtifact {
   user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   targetCompany FollowedCompany? @relation(fields: [targetCompanyId], references: [id])
   evidence      Evidence[]
+}
+
+model JobMatch {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  companyId   Int
+  jobTitle    String
+  jobUrl      String?  // null for generic (no specific opening)
+  matchScore  Float    // 0-1
+  matchReason String
+  matchSkills String?  // JSON array of matching skills
+  isGeneric   Boolean  @default(false) // true = company-level match, no specific opening
+  generatedAt DateTime @default(now())
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company FollowedCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([userId, generatedAt])
 }

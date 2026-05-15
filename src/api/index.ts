@@ -13,6 +13,7 @@ import interviewRouter     from "./routes/interview";
 import leadsRouter         from "./routes/leads";
 import evidenceRouter      from "./routes/evidence";
 import artifactsRouter     from "./routes/artifacts";
+import matchesRouter       from "./routes/matches";
 
 const api = Router();
 
@@ -30,5 +31,6 @@ api.use("/interview",     interviewRouter);
 api.use("/leads",         leadsRouter);
 api.use("/evidence",      evidenceRouter);
 api.use("/artifacts",     artifactsRouter);
+api.use("/matches",       matchesRouter);
 
 export default api;
