@@ -2,9 +2,7 @@ import { Router, Response } from "express";
 import { AuthRequest, requireAuth } from "../middleware/auth";
 import { prisma } from "../../db/client";
 import { runMonitorForUser } from "../../jobs/monitor";
-import OpenAI from "openai";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { anthropic } from "../../ai/client";
 
 const router = Router();
 router.use(requireAuth);
@@ -150,15 +148,12 @@ router.post("/:id/fit", async (req: AuthRequest, res: Response) => {
     `[${e.roleType}] ${e.title} — ${e.impact ?? "no metric"} (skills: ${e.skills ?? "n/a"})`
   ).join("\n");
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    response_format: { type: "json_object" },
+  const response = await anthropic.messages.create({
+    model: "claude-haiku-4-5",
+    max_tokens: 512,
+    system: `You assess how well a candidate's evidence matches a target company and role.
+Return ONLY valid JSON: { "score": number (0-1), "summary": string (1 sentence), "strengths": string[], "gaps": string[] }`,
     messages: [
-      {
-        role: "system",
-        content: `You assess how well a candidate's evidence matches a target company and role.
-Return JSON: { score: number (0-1), summary: string (1 sentence), strengths: string[], gaps: string[] }`,
-      },
       {
         role: "user",
         content: `Company: ${company.name} (${company.industry ?? "tech"}, ${company.continent ?? "global"})
@@ -172,7 +167,8 @@ ${evidenceSummary}`,
     ],
   });
 
-  const result = JSON.parse(completion.choices[0].message.content ?? "{}");
+  const text = response.content[0].type === "text" ? response.content[0].text : "{}";
+  const result = JSON.parse(text);
   const score = Math.max(0, Math.min(1, Number(result.score) || 0));
 
   await prisma.followedCompany.update({

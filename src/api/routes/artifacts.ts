@@ -1,13 +1,11 @@
 import { Router } from "express";
 import { prisma } from "../../db/client";
 import { requireAuth } from "../middleware/auth";
-import OpenAI from "openai";
 import { nanoid } from "nanoid";
+import { anthropic } from "../../ai/client";
 
 const router = Router();
 router.use(requireAuth);
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 type ArtifactType = "cv" | "interview_pack" | "case_study" | "skill_proof" | "outreach_message";
 
@@ -175,15 +173,14 @@ Keep it under 150 words. Lead with something specific about the company/role. Re
 Also write a shorter LinkedIn connection request version (under 300 characters).`,
   };
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      { role: "system", content: prompts[type] },
-      { role: "user",   content: `Evidence library:\n\n${evidenceSummary}` },
-    ],
+  const response = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 2048,
+    system: prompts[type],
+    messages: [{ role: "user", content: `Evidence library:\n\n${evidenceSummary}` }],
   });
 
-  return completion.choices[0].message.content ?? "";
+  return response.content[0].type === "text" ? response.content[0].text : "";
 }
 
 export default router;

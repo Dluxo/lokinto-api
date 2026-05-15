@@ -1,12 +1,10 @@
 import { Router } from "express";
 import { prisma } from "../../db/client";
 import { requireAuth } from "../middleware/auth";
-import OpenAI from "openai";
+import { anthropic } from "../../ai/client";
 
 const router = Router();
 router.use(requireAuth);
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // GET /api/evidence
 router.get("/", async (req, res) => {
@@ -130,26 +128,22 @@ router.post("/structure", async (req, res) => {
 });
 
 async function structureRawNotes(raw: string) {
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content: `You are a career coach AI. Extract structured career evidence from raw notes.
-Return JSON with:
+  const response = await anthropic.messages.create({
+    model: "claude-haiku-4-5",
+    max_tokens: 512,
+    system: `You are a career coach AI. Extract structured career evidence from raw notes.
+Return ONLY valid JSON with these fields:
 - title: string (short, action-led e.g. "Rebuilt search infrastructure cutting p99 latency by 60%")
 - summary: string (2-3 sentences, what was done and why it mattered)
 - roleType: "eng" | "pm" | "data" | "design" | "ops" | "leadership"
 - impact: string (the key metric or outcome, e.g. "Reduced churn by 12%")
 - skills: string[] (tools, technologies, methods used)
 - aiInvolved: boolean (was AI/LLMs part of the work?)`,
-      },
-      { role: "user", content: raw },
-    ],
+    messages: [{ role: "user", content: raw }],
   });
 
-  return JSON.parse(completion.choices[0].message.content ?? "{}");
+  const text = response.content[0].type === "text" ? response.content[0].text : "{}";
+  try { return JSON.parse(text); } catch { return {}; }
 }
 
 export default router;

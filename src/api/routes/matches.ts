@@ -1,9 +1,8 @@
 import { Router, Response } from "express";
 import { AuthRequest, requireAuth } from "../middleware/auth";
 import { prisma } from "../../db/client";
-import OpenAI from "openai";
+import { anthropic } from "../../ai/client";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const router = Router();
 router.use(requireAuth);
 
@@ -100,17 +99,14 @@ async function generateMatches(userId: number) {
     )
     .join("\n");
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content: `You match a candidate's evidence to job opportunities.
+  const response = await anthropic.messages.create({
+    model: "claude-haiku-4-5",
+    max_tokens: 1024,
+    system: `You match a candidate's evidence to job opportunities.
 For each opportunity, return a match score and short explanation.
-Return JSON: { matches: Array<{ id: number, matchScore: number (0-1), reason: string (max 15 words), skills: string[] (max 3) }> }
+Return ONLY valid JSON: { "matches": Array<{ "id": number, "matchScore": number (0-1), "reason": string (max 15 words), "skills": string[] (max 3) }> }
 Only include opportunities where matchScore >= 0.35.`,
-      },
+    messages: [
       {
         role: "user",
         content: `Target roles: ${targetRoles.join(", ")}
@@ -127,7 +123,8 @@ ${oppList}`,
 
   let aiMatches: Array<{ id: number; matchScore: number; reason: string; skills: string[] }> = [];
   try {
-    const parsed = JSON.parse(completion.choices[0].message.content ?? "{}");
+    const text = response.content[0].type === "text" ? response.content[0].text : "{}";
+    const parsed = JSON.parse(text);
     aiMatches = parsed.matches ?? [];
   } catch {
     return [];
