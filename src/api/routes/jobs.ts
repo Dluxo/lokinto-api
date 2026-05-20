@@ -1,9 +1,34 @@
 import { Router, Response } from "express";
 import { AuthRequest, requireAuth } from "../middleware/auth";
 import { prisma } from "../../db/client";
+import { searchJobs } from "../../actions/jobSearch";
 
 const router = Router();
 router.use(requireAuth);
+
+// GET /api/jobs/search — live job search from JSearch + Remotive + Himalayas
+router.get("/search", async (req: AuthRequest, res: Response) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.userId },
+    select: { targetRoles: true, experience: true, currentLevel: true },
+  });
+
+  // Parse target roles from JSON string
+  let targetRoles: string[] = [];
+  try { targetRoles = user?.targetRoles ? JSON.parse(user.targetRoles) : []; } catch {}
+
+  const jobTitle = (req.query["role"] as string) || targetRoles[0] || "Software Engineer";
+  const seniority = (req.query["seniority"] as string) || user?.currentLevel || undefined;
+  const remote = req.query["remote"] !== "false";
+
+  try {
+    const jobs = await searchJobs({ jobTitle, seniority, remote, resultsPerPage: 8 });
+    res.json({ jobs, query: jobTitle });
+  } catch (err) {
+    console.error("[jobs/search]", err);
+    res.status(500).json({ error: "Search failed" });
+  }
+});
 
 // GET /api/jobs — paginated job alerts for the user
 router.get("/", async (req: AuthRequest, res: Response) => {
