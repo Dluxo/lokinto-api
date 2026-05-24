@@ -20,13 +20,6 @@ router.post("/google", async (req: Request, res: Response) => {
     return;
   }
 
-  // Decode token payload (no verification) to log audience for debugging
-  try {
-    const [, payloadB64] = idToken.split(".");
-    const decoded = JSON.parse(Buffer.from(payloadB64, "base64").toString());
-    console.log("[auth/google] token aud:", decoded.aud, "| checking against:", GOOGLE_AUDIENCES);
-  } catch { /* ignore decode errors */ }
-
   try {
     const ticket = await googleClient.verifyIdToken({
       idToken,
