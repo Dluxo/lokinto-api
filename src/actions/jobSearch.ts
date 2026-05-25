@@ -59,27 +59,35 @@ function formatJobType(type: string): string {
   );
 }
 
+/** Map a job title to the closest Remotive category */
+function remotiveCategory(jobTitle?: string): string {
+  const t = (jobTitle ?? "").toLowerCase();
+  if (/data|analyst|scientist|ml|machine learning|ai engineer/.test(t)) return "Data";
+  if (/design|ux|ui|product design|figma/.test(t))                       return "Design";
+  if (/devops|sre|infra|platform|cloud|kubernetes|terraform/.test(t))    return "DevOps / Sysadmin";
+  if (/product manager|pm|product ops/.test(t))                          return "Product";
+  if (/marketing|growth|seo|content/.test(t))                            return "Marketing";
+  if (/sales|account|business dev/.test(t))                              return "Sales";
+  if (/finance|accounting|revenue/.test(t))                              return "Finance / Legal";
+  if (/hr|people|recruiter|talent/.test(t))                              return "Human Resources";
+  // default: software
+  return "Software Development";
+}
+
 async function searchRemotive(params: JobSearchParams): Promise<JobResult[]> {
   const url = new URL("https://remotive.com/api/remote-jobs");
 
-  // Always search in the Design category
-  url.searchParams.set("category", "Design");
-  url.searchParams.set("limit", String(params.resultsPerPage ?? 5));
+  const category = remotiveCategory(params.jobTitle);
+  url.searchParams.set("category", category);
+  url.searchParams.set("limit", String((params.resultsPerPage ?? 5) * 2)); // fetch more, filter after
 
-  // Build keyword search from title + seniority + extra keywords
-  const searchTerms = [
-    params.jobTitle,
-    params.seniority,
-    params.keywords,
-  ]
+  const searchTerms = [params.jobTitle, params.seniority, params.keywords]
     .filter(Boolean)
     .join(" ");
 
-  if (searchTerms) {
-    url.searchParams.set("search", searchTerms);
-  }
+  if (searchTerms) url.searchParams.set("search", searchTerms);
 
-  console.log(`[jobSearch] remotive query: category=Design search="${searchTerms}"`);
+  console.log(`[jobSearch] remotive category="${category}" search="${searchTerms}"`);
 
   const res = await fetch(url.toString());
 
@@ -129,7 +137,7 @@ async function searchJSearch(params: JobSearchParams): Promise<JobResult[]> {
 
   const query = [
     params.seniority,
-    params.jobTitle ?? "product designer",
+    params.jobTitle ?? "Software Engineer",
     params.keywords,
     "remote",
   ]
@@ -205,7 +213,7 @@ interface HimalayasResponse {
 async function searchHimalayas(params: JobSearchParams): Promise<JobResult[]> {
   const query = [
     params.seniority,
-    params.jobTitle ?? "product designer",
+    params.jobTitle ?? "Software Engineer",
     params.keywords,
   ]
     .filter(Boolean)
