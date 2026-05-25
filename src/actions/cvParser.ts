@@ -1,3 +1,17 @@
+import mammoth from "mammoth";
+
+/**
+ * Extract plain text from a DOCX buffer using mammoth.
+ */
+export async function extractTextFromDocx(buffer: Buffer): Promise<string> {
+  const result = await mammoth.extractRawText({ buffer });
+  return result.value
+    .replace(/\r\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { PDFParse } = require("pdf-parse") as {
   PDFParse: new (opts: { data: Buffer }) => {

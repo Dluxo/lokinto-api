@@ -1,11 +1,26 @@
 import { Router } from "express";
+import multer from "multer";
+import crypto from "crypto";
 import { prisma } from "../../db/client";
 import { requireAuth } from "../middleware/auth";
 import { nanoid } from "nanoid";
 import { anthropic } from "../../ai/client";
+import { extractTextFromPDF, extractTextFromDocx } from "../../actions/cvParser";
 
 const router = Router();
 router.use(requireAuth);
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+    cb(null, allowed.includes(file.mimetype));
+  },
+});
 
 type ArtifactType = "cv" | "interview_pack" | "case_study" | "skill_proof" | "outreach_message";
 
@@ -98,6 +113,51 @@ router.post("/generate", async (req, res) => {
   });
 
   res.status(201).json({ artifact });
+});
+
+// POST /api/artifacts/upload — upload existing case study / portfolio doc
+router.post("/upload", upload.single("file"), async (req, res) => {
+  const userId = (req as any).userId as number;
+  if (!req.file) {
+    return res.status(400).json({ error: "No file provided. Send as multipart field 'file'." });
+  }
+
+  try {
+    const buffer   = req.file.buffer;
+    const mimetype = req.file.mimetype;
+    const fileHash = crypto.createHash("sha256").update(buffer).digest("hex");
+
+    // Duplicate check
+    const existing = await prisma.careerArtifact.findFirst({
+      where: { userId, evidenceIds: fileHash },
+    });
+    if (existing) {
+      return res.status(409).json({ error: "This file has already been uploaded", artifact: existing });
+    }
+
+    const rawText = mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ? await extractTextFromDocx(buffer)
+      : await extractTextFromPDF(buffer);
+
+    const targetRole = (req.body?.targetRole as string | undefined) || null;
+    const slug = nanoid(10);
+
+    const artifact = await prisma.careerArtifact.create({
+      data: {
+        userId,
+        type: "case_study",
+        targetRole,
+        content:    rawText,
+        evidenceIds: fileHash, // repurpose field as hash for dedup
+        slug,
+      },
+    });
+
+    res.status(201).json({ artifact });
+  } catch (err) {
+    console.error("[artifacts/upload]", err);
+    res.status(500).json({ error: "Failed to process file" });
+  }
 });
 
 // DELETE /api/artifacts/:id

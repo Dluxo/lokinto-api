@@ -3,7 +3,8 @@ import multer from "multer";
 import crypto from "crypto";
 import { AuthRequest, requireAuth } from "../middleware/auth";
 import { prisma } from "../../db/client";
-import { extractTextFromPDF } from "../../actions/cvParser";
+import { anthropic } from "../../ai/client";
+import { extractTextFromPDF, extractTextFromDocx } from "../../actions/cvParser";
 
 const router = Router();
 router.use(requireAuth);
@@ -20,6 +21,13 @@ const upload = multer({
   },
 });
 
+async function extractText(buffer: Buffer, mimetype: string): Promise<string> {
+  if (mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+    return extractTextFromDocx(buffer);
+  }
+  return extractTextFromPDF(buffer);
+}
+
 // GET /api/cv — CV metadata (no raw text)
 router.get("/", async (req: AuthRequest, res: Response) => {
   const cv = await prisma.userCV.findUnique({
@@ -29,7 +37,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
   res.json(cv ?? null);
 });
 
-// POST /api/cv/upload — upload + parse CV
+// POST /api/cv/upload — upload + parse CV (PDF or DOCX)
 router.post("/upload", upload.single("cv"), async (req: AuthRequest, res: Response) => {
   if (!req.file) {
     res.status(400).json({ error: "No file provided. Send as multipart field 'cv'." });
@@ -40,17 +48,16 @@ router.post("/upload", upload.single("cv"), async (req: AuthRequest, res: Respon
     const buffer   = req.file.buffer;
     const fileHash = crypto.createHash("sha256").update(buffer).digest("hex");
 
-    // Duplicate detection for this user
     const existing = await prisma.userCV.findFirst({ where: { fileHash, userId: req.userId } });
     if (existing) {
       res.status(409).json({ error: "This CV has already been uploaded", cv: existing });
       return;
     }
 
-    const rawText = await extractTextFromPDF(buffer);
+    const rawText = await extractText(buffer, req.file.mimetype);
 
     const cv = await prisma.userCV.upsert({
-      where: { userId: req.userId! },
+      where:  { userId: req.userId! },
       update: { filename: req.file.originalname, rawText, fileHash },
       create: { userId: req.userId!, filename: req.file.originalname, rawText, fileHash },
     });
@@ -62,6 +69,76 @@ router.post("/upload", upload.single("cv"), async (req: AuthRequest, res: Respon
   } catch (err) {
     console.error("[cv/upload]", err);
     res.status(500).json({ error: "Failed to process CV" });
+  }
+});
+
+// POST /api/cv/extract-evidence — parse stored CV with Claude → bulk-create evidence items
+router.post("/extract-evidence", async (req: AuthRequest, res: Response) => {
+  const userId = req.userId!;
+
+  const cv = await prisma.userCV.findUnique({ where: { userId } });
+  if (!cv) {
+    res.status(404).json({ error: "No CV uploaded yet. Upload your CV first." });
+    return;
+  }
+
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 4096,
+      system: `You are a career evidence extractor. Given a CV/resume, extract each distinct work achievement, project, or responsibility as a structured evidence item.
+
+Return a JSON array only — no markdown, no explanation. Each item:
+{
+  "title": "short action-led title (max 80 chars)",
+  "summary": "2-3 sentence description of what was done and why it mattered",
+  "impact": "measurable result or metric if mentioned, otherwise null",
+  "roleType": "eng|pm|data|design|ops|leadership",
+  "skills": ["skill1", "skill2"],
+  "aiInvolved": false,
+  "periodFrom": "YYYY-MM-01 or null",
+  "periodTo": "YYYY-MM-01 or null"
+}
+
+roleType rules: eng=software/infra, pm=product/strategy, data=analytics/ml, design=ux/visual, ops=operations/process, leadership=managing people/org.
+Extract 3-15 items. Focus on achievements not job descriptions.`,
+      messages: [{ role: "user", content: `CV text:\n\n${cv.rawText.slice(0, 12000)}` }],
+    });
+
+    const raw = response.content[0].type === "text" ? response.content[0].text : "[]";
+    const items = JSON.parse(raw) as Array<{
+      title: string;
+      summary: string;
+      impact: string | null;
+      roleType: string;
+      skills: string[];
+      aiInvolved: boolean;
+      periodFrom: string | null;
+      periodTo: string | null;
+    }>;
+
+    const created = await prisma.$transaction(
+      items.map((item) =>
+        prisma.evidence.create({
+          data: {
+            userId,
+            title:      item.title,
+            summary:    item.summary,
+            impact:     item.impact  || null,
+            roleType:   item.roleType || "eng",
+            skills:     JSON.stringify(item.skills ?? []),
+            aiInvolved: false,
+            periodFrom: item.periodFrom ? new Date(item.periodFrom) : null,
+            periodTo:   item.periodTo   ? new Date(item.periodTo)   : null,
+          },
+        })
+      )
+    );
+
+    res.json({ extracted: created.length, items: created });
+  } catch (err) {
+    console.error("[cv/extract-evidence]", err);
+    res.status(500).json({ error: "Failed to extract evidence from CV" });
   }
 });
 
