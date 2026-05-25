@@ -153,7 +153,46 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       },
     });
 
-    res.status(201).json({ artifact });
+    // Structure the uploaded document as a work item using Claude Haiku
+    let evidence = null;
+    try {
+      const aiRes = await anthropic.messages.create({
+        model: "claude-haiku-4-5",
+        max_tokens: 512,
+        system: `Extract a single structured work item from this case study or portfolio document.
+Return ONLY valid JSON, no markdown:
+{
+  "title": "action-led title max 80 chars",
+  "summary": "2-3 sentences — what was done and why it mattered",
+  "impact": "key metric or outcome, or null",
+  "roleType": "eng|pm|data|design|ops|leadership",
+  "skills": ["skill1", "skill2"]
+}`,
+        messages: [{ role: "user", content: rawText.slice(0, 8000) }],
+      });
+
+      const aiText = aiRes.content[0].type === "text" ? aiRes.content[0].text : "{}";
+      let structured: any = {};
+      try { structured = JSON.parse(aiText); } catch { /* fall back to defaults */ }
+
+      evidence = await prisma.evidence.create({
+        data: {
+          userId,
+          title:         structured.title     || req.file!.originalname,
+          summary:       structured.summary   || rawText.slice(0, 300),
+          roleType:      structured.roleType  || "eng",
+          impact:        structured.impact    || null,
+          skills:        Array.isArray(structured.skills) ? JSON.stringify(structured.skills) : null,
+          aiInvolved:    false,
+          artifactsJson: JSON.stringify([artifact.id]),
+        },
+      });
+    } catch (aiErr) {
+      console.error("[artifacts/upload] work item creation failed", aiErr);
+      // Non-fatal — artifact is still saved
+    }
+
+    res.status(201).json({ artifact, evidence });
   } catch (err) {
     console.error("[artifacts/upload]", err);
     res.status(500).json({ error: "Failed to process file" });

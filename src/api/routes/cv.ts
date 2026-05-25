@@ -72,7 +72,8 @@ router.post("/upload", upload.single("cv"), async (req: AuthRequest, res: Respon
   }
 });
 
-// POST /api/cv/extract-evidence — parse stored CV with Claude → bulk-create evidence items
+// POST /api/cv/extract-evidence — parse stored CV with Claude → return draft items (NOT saved)
+// The client reviews the items, then calls POST /api/evidence/bulk to confirm save.
 router.post("/extract-evidence", async (req: AuthRequest, res: Response) => {
   const userId = req.userId!;
 
@@ -117,25 +118,8 @@ Extract 3-15 items. Focus on achievements not job descriptions.`,
       periodTo: string | null;
     }>;
 
-    const created = await prisma.$transaction(
-      items.map((item) =>
-        prisma.evidence.create({
-          data: {
-            userId,
-            title:      item.title,
-            summary:    item.summary,
-            impact:     item.impact  || null,
-            roleType:   item.roleType || "eng",
-            skills:     JSON.stringify(item.skills ?? []),
-            aiInvolved: false,
-            periodFrom: item.periodFrom ? new Date(item.periodFrom) : null,
-            periodTo:   item.periodTo   ? new Date(item.periodTo)   : null,
-          },
-        })
-      )
-    );
-
-    res.json({ extracted: created.length, items: created });
+    // Return draft items — client reviews before calling /evidence/bulk to save
+    res.json({ items });
   } catch (err) {
     console.error("[cv/extract-evidence]", err);
     res.status(500).json({ error: "Failed to extract evidence from CV" });

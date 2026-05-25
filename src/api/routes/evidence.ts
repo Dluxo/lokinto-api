@@ -30,6 +30,40 @@ router.get("/:id", async (req, res) => {
   res.json({ evidence: item });
 });
 
+// POST /api/evidence/bulk — save multiple items at once (used after CV review)
+router.post("/bulk", async (req, res) => {
+  const userId = (req as any).userId as number;
+  const { items } = req.body;
+
+  if (!Array.isArray(items) || !items.length) {
+    return res.status(400).json({ error: "items array required" });
+  }
+
+  try {
+    const created = await prisma.$transaction(
+      items.map((item: any) =>
+        prisma.evidence.create({
+          data: {
+            userId,
+            title:      item.title,
+            summary:    item.summary,
+            roleType:   item.roleType || "eng",
+            impact:     item.impact || null,
+            skills:     Array.isArray(item.skills) ? JSON.stringify(item.skills) : item.skills || null,
+            aiInvolved: item.aiInvolved ?? false,
+            periodFrom: item.periodFrom ? new Date(item.periodFrom) : null,
+            periodTo:   item.periodTo   ? new Date(item.periodTo)   : null,
+          },
+        })
+      )
+    );
+    res.status(201).json({ created: created.length, evidence: created });
+  } catch (err) {
+    console.error("[evidence/bulk]", err);
+    res.status(500).json({ error: "Failed to save items" });
+  }
+});
+
 // POST /api/evidence — create from structured input or raw notes
 router.post("/", async (req, res) => {
   const userId = (req as any).userId as number;
