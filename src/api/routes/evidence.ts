@@ -152,6 +152,61 @@ router.delete("/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
+// POST /api/evidence/craft — stateless AI drafting session
+// Client sends the current draft + user message + conversation history.
+// AI returns a reply and optionally an updated draft (appended as DRAFT_UPDATE:<json> on the last line).
+router.post("/craft", async (req, res) => {
+  const { draft, message, history = [] } = req.body as {
+    draft: Record<string, any>;
+    message: string;
+    history: { role: "user" | "assistant"; content: string }[];
+  };
+  if (!draft || !message) {
+    return res.status(400).json({ error: "draft and message required" });
+  }
+
+  const systemPrompt = `You are a career coach helping a professional craft a compelling work portfolio item.
+
+Current draft:
+${JSON.stringify(draft, null, 2)}
+
+Rules:
+1. Keep replies SHORT — 1-3 sentences max.
+2. If the user asks you to change ANYTHING in the item, update it AND append on the very last line of your reply (no other text after it):
+   DRAFT_UPDATE:{"title":"...","summary":"...","roleType":"eng|pm|data|design|ops|leadership","impact":"...or null","skills":["s1","s2"],"aiInvolved":false}
+3. If nothing changed, do NOT include DRAFT_UPDATE.
+4. Make the item compelling, metric-driven, and specific. Cut vague language.`;
+
+  const messages = [
+    ...history,
+    { role: "user" as const, content: message },
+  ];
+
+  const result = await anthropic.messages.create({
+    model: "claude-haiku-4-5",
+    max_tokens: 1024,
+    system: systemPrompt,
+    messages,
+  });
+
+  const fullText = result.content[0].type === "text" ? result.content[0].text : "";
+
+  // Parse optional DRAFT_UPDATE on last line
+  const lines = fullText.trimEnd().split("\n");
+  const lastLine = lines[lines.length - 1] ?? "";
+  let updatedDraft = draft;
+  let reply = fullText;
+
+  if (lastLine.startsWith("DRAFT_UPDATE:")) {
+    try {
+      updatedDraft = JSON.parse(lastLine.slice("DRAFT_UPDATE:".length).trim());
+      reply = lines.slice(0, -1).join("\n").trim();
+    } catch { /* keep original draft */ }
+  }
+
+  res.json({ reply, draft: updatedDraft });
+});
+
 // POST /api/evidence/structure — AI-structure raw notes without saving
 router.post("/structure", async (req, res) => {
   const { rawNotes } = req.body;

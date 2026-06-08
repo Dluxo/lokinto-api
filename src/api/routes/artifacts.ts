@@ -153,8 +153,8 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       },
     });
 
-    // Structure the uploaded document as a work item using Claude Haiku
-    let evidence = null;
+    // Use Claude Haiku to create an initial draft (NOT saved — client reviews in craft screen)
+    let draft: Record<string, any> | null = null;
     try {
       const aiRes = await anthropic.messages.create({
         model: "claude-haiku-4-5",
@@ -166,33 +166,30 @@ Return ONLY valid JSON, no markdown:
   "summary": "2-3 sentences — what was done and why it mattered",
   "impact": "key metric or outcome, or null",
   "roleType": "eng|pm|data|design|ops|leadership",
-  "skills": ["skill1", "skill2"]
+  "skills": ["skill1", "skill2"],
+  "aiInvolved": false
 }`,
         messages: [{ role: "user", content: rawText.slice(0, 8000) }],
       });
 
       const aiText = aiRes.content[0].type === "text" ? aiRes.content[0].text : "{}";
-      let structured: any = {};
-      try { structured = JSON.parse(aiText); } catch { /* fall back to defaults */ }
-
-      evidence = await prisma.evidence.create({
-        data: {
-          userId,
-          title:         structured.title     || req.file!.originalname,
-          summary:       structured.summary   || rawText.slice(0, 300),
-          roleType:      structured.roleType  || "eng",
-          impact:        structured.impact    || null,
-          skills:        Array.isArray(structured.skills) ? JSON.stringify(structured.skills) : null,
-          aiInvolved:    false,
-          artifactsJson: JSON.stringify([artifact.id]),
-        },
-      });
+      try {
+        const structured = JSON.parse(aiText);
+        draft = {
+          title:      structured.title      || req.file!.originalname,
+          summary:    structured.summary    || rawText.slice(0, 300),
+          roleType:   structured.roleType   || "eng",
+          impact:     structured.impact     || null,
+          skills:     Array.isArray(structured.skills) ? structured.skills : [],
+          aiInvolved: structured.aiInvolved ?? false,
+        };
+      } catch { /* leave draft as null */ }
     } catch (aiErr) {
-      console.error("[artifacts/upload] work item creation failed", aiErr);
-      // Non-fatal — artifact is still saved
+      console.error("[artifacts/upload] draft extraction failed", aiErr);
     }
 
-    res.status(201).json({ artifact, evidence });
+    // Draft is returned to the client for review in the craft screen — nothing saved to evidence yet
+    res.status(201).json({ artifact, draft });
   } catch (err) {
     console.error("[artifacts/upload]", err);
     res.status(500).json({ error: "Failed to process file" });
