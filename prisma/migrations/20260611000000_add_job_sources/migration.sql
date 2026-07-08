@@ -1,0 +1,66 @@
+-- CreateTable
+CREATE TABLE "JobSource" (
+    "id"            SERIAL NOT NULL,
+    "name"          TEXT NOT NULL,
+    "url"           TEXT NOT NULL,
+    "description"   TEXT,
+    "category"      TEXT NOT NULL DEFAULT 'remote-board',
+    "sourceCount"   INTEGER NOT NULL DEFAULT 1,
+    "active"        BOOLEAN NOT NULL DEFAULT true,
+    "lastCheckedAt" TIMESTAMP(3),
+    "createdAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "JobSource_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "JobSource_name_key" ON "JobSource"("name");
+
+-- Seed all 45 remote job websites
+INSERT INTO "JobSource" ("name", "url", "description", "category", "sourceCount") VALUES
+  ('Arc',              'arc.dev',                 'Platform helping developers find remote jobs and streamlining the hiring process.',      'remote-board',  3),
+  ('Authentic Jobs',   'authenticjobs.com',       'Paid job board for freelance, full-time, contract work and internships in creative/tech.','remote-board',  3),
+  ('bremote',          'bremote.com',             'Remote roles focused on Europe.',                                                         'remote-board',  1),
+  ('Built In',         'builtin.com/jobs',        'Tech company jobs.',                                                                      'aggregator',    1),
+  ('Careerjet',        'careerjet.com',           'Aggregated job listings across industries.',                                              'aggregator',    1),
+  ('Consistently',     'consistently.com',        'Remote customer service jobs.',                                                           'niche',         1),
+  ('Crospresso',       'crospresso.com',          'Curated remote job listings.',                                                            'remote-board',  1),
+  ('DailyRemote',      'dailyremote.com',         'Daily remote listings and jobs at remote startups.',                                      'remote-board',  2),
+  ('Dynamite Jobs',    'dynamitejobs.com',        'Flexible remote jobs and remote machine learning jobs.',                                  'remote-board',  2),
+  ('Fiverr',           'fiverr.com',              'Marketplace for freelancers to offer services and connect with clients.',                  'freelance',     2),
+  ('FlexJobs',         'flexjobs.com',            'Vetted, scam-free remote job listings carefully screened for quality.',                   'remote-board',  3),
+  ('Freelancer',       'freelancer.com',          'Marketplace for project-based freelance work with global clients.',                       'freelance',     2),
+  ('Glassdoor',        'glassdoor.com',           'Jobs and company reviews.',                                                               'aggregator',    1),
+  ('Guru',             'guru.com',                'Freelance marketplace.',                                                                  'freelance',     1),
+  ('Himalayas',        'himalayas.app',           'Remote job board with detailed company info for job candidates.',                         'remote-board',  2),
+  ('Hitmarker',        'hitmarker.net',           'Gaming industry jobs.',                                                                   'niche',         1),
+  ('Hubstaff Talent',  'hubstaff.com/jobs',       'Remote jobs across various roles.',                                                       'remote-board',  1),
+  ('Indeed',           'indeed.com',              'Broad job search aggregator.',                                                            'aggregator',    1),
+  ('Jobicy',           'jobicy.com',              'Remote job openings.',                                                                    'remote-board',  1),
+  ('Jobot',            'jobot.com',               'Jobs in tech, finance, and healthcare.',                                                  'aggregator',    1),
+  ('JobRack',          'jobrack.eu',              'Helps Eastern European workers find remote jobs with global businesses.',                 'remote-board',  1),
+  ('Jobs Consult',     'jobsconsult.com',         'Curated remote job vacancies.',                                                           'remote-board',  1),
+  ('Jobspresso',       'jobspresso.co',           'High-paying, high-quality remote jobs for professionals in various fields.',              'remote-board',  2),
+  ('Jooble',           'jooble.org',              'Job search engine aggregating listings worldwide.',                                       'aggregator',    1),
+  ('Just Remote',      'justremote.com',          'Find remote jobs quickly with filters to narrow down options.',                           'remote-board',  3),
+  ('Landing.jobs',     'landing.jobs',            'Remote jobs and resources.',                                                              'remote-board',  1),
+  ('LinkedIn',         'linkedin.com/jobs',       'Professional network for job search and applications.',                                   'aggregator',    1),
+  ('NoDesk',           'nodesk.co',               'Focuses on remote work opportunities in Europe.',                                         'remote-board',  1),
+  ('Otta',             'otta.com',                'Curated startup jobs.',                                                                   'remote-board',  1),
+  ('Outsourcely',      'outsourcely.com',         'Connects remote workers and businesses for permanent work opportunities.',               'remote-board',  1),
+  ('Pangian',          'pangian.com',             'Global platform connecting companies and remote workers anywhere.',                       'community',     1),
+  ('PowerToFly',       'powertofly.com',          'Remote jobs for women.',                                                                  'niche',         1),
+  ('Remote EML',       'remoteeml.com',           'Location-independent jobs.',                                                              'remote-board',  1),
+  ('Remote Europe',    'remoteurope.com',         'Lists high-paying remote jobs in Europe.',                                               'remote-board',  1),
+  ('Remote.co',        'remote.co',               'Remote jobs with resources and advice for remote workers and companies.',                 'remote-board',  3),
+  ('RemoteOK',         'remoteok.com',            'Popular job board listing remote opportunities across industries.',                       'remote-board',  3),
+  ('Remotive',         'remotive.io',             'Curated remote job listings, especially in tech.',                                        'remote-board',  2),
+  ('Toptal',           'toptal.com',              'Network connecting businesses with top talent in design, tech, and business.',            'freelance',     2),
+  ('Upwork',           'upwork.com',              'Hire freelancers, agencies and contractors for remote work.',                             'freelance',     2),
+  ('Virtual Vocations','virtualvocations.com',    'Trusted, hand-selected remote job leads for paid work.',                                 'remote-board',  1),
+  ('We Work Remotely', 'weworkremotely.com',      'Biggest online community connecting remote job seekers with employers.',                 'community',     3),
+  ('Wellfound',        'wellfound.com',           'Remote-friendly opportunities at startups.',                                             'remote-board',  3),
+  ('Workew',           'workew.com',              'Jobs in various remote work categories.',                                                 'remote-board',  1),
+  ('Working Nomads',   'workingnomads.com',       'Daily-updated trustworthy remote job listings for digital nomads.',                     'remote-board',  2),
+  ('ZipRecruiter',     'ziprecruiter.com',        'Jobs across industries.',                                                                 'aggregator',    1);

@@ -271,6 +271,20 @@ model CareerArtifact {
   evidence      Evidence[]
 }
 
+// Remote job websites / sources we track for job listings
+model JobSource {
+  id            Int       @id @default(autoincrement())
+  name          String    @unique  // e.g. "FlexJobs"
+  url           String             // e.g. "flexjobs.com"
+  description   String?            // what the site is known for
+  category      String    @default("remote-board") // "remote-board" | "freelance" | "aggregator" | "community" | "niche"
+  sourceCount   Int       @default(1) // how many independent lists it appeared in (proxy for popularity)
+  active        Boolean   @default(true)  // whether we're actively tracking it
+  lastCheckedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
 model JobMatch {
   id          Int      @id @default(autoincrement())
   userId      Int
