@@ -4,6 +4,7 @@ import express, { Request, Response } from "express";
 import path from "path";
 import fs from "fs";
 import { startMonitor } from "./jobs/monitor";
+import { startJobPoller } from "./jobs/jobPoller";
 import { getPortfolioBySlug, incrementViewCount, getWorkItemById } from "./db/portfolio";
 import { generateProjectPage } from "./actions/portfolioGenerator";
 import { prisma } from "./db/client";
@@ -79,4 +80,5 @@ app.use("/api", apiRouter);
 app.listen(PORT, () => {
   console.log(`Lokinto webhook server listening on port ${PORT}`);
   startMonitor();
+  startJobPoller();
 });

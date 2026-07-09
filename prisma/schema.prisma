@@ -280,9 +280,34 @@ model JobSource {
   category      String    @default("remote-board") // "remote-board" | "freelance" | "aggregator" | "community" | "niche"
   sourceCount   Int       @default(1) // how many independent lists it appeared in (proxy for popularity)
   active        Boolean   @default(true)  // whether we're actively tracking it
+  adapter       String?            // fetcher key when the source has a pollable API, e.g. "remoteok" | "jobicy" | "remotive" | "workingnomads"
   lastCheckedAt DateTime?
+  lastJobCount  Int       @default(0) // postings seen on the most recent poll
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  postings JobPosting[]
+}
+
+// A single job listing pulled from a JobSource's public API
+model JobPosting {
+  id         Int       @id @default(autoincrement())
+  sourceId   Int
+  externalId String?             // the source's own id, when available
+  title      String
+  company    String
+  location   String?
+  url        String
+  jobType    String?
+  salary     String?
+  tags       String?             // JSON array of strings
+  postedAt   DateTime?
+  fetchedAt  DateTime  @default(now())
+
+  source JobSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, url])
+  @@index([sourceId, postedAt])
 }
 
 model JobMatch {
